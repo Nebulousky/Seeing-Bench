@@ -60,10 +60,11 @@ fields are `numpy.float64`. Conversion to external storage formats happens only 
 Implemented today: offline synthetic Phase 1 scaffolding with JSON simulation configs,
 smooth multiscale warp fields, Gaussian PSF/noise, approximate spatially varying seeing
 blur, explicit integer sensor-grid downsampling, explicit sensor saturation metadata,
-TIFF/NumPy benchmark export, baseline mean-stack adapter, image/structure/frequency/
-false-detail/warp metrics, diffraction-relative frequency interpretation, Markdown reports,
-comparison reports, richer diagnostics, CLI commands, and unit tests. LRO/LOLA/NAC/SPICE
-integration and real Earth-view rendering are not implemented.
+TIFF/NumPy benchmark export, baseline mean-stack adapter, global and local block translation
+stack adapters, image/structure/frequency/false-detail/warp metrics, diffraction-relative
+frequency interpretation, Markdown reports, comparison reports, richer diagnostics, CLI
+commands, and unit tests. LRO/LOLA/NAC/SPICE integration and real Earth-view rendering are
+not implemented.
 
 ## Related
 

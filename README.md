@@ -21,6 +21,7 @@ unsupported fine detail.
   - `metadata.json`
 - Baseline mean-stack adapter.
 - Global phase-correlation translation-stack adapter.
+- Local block phase-correlation stack adapter for practical non-oracle destretching.
 - Synthetic-only oracle aligned-stack adapter for upper-bound validation.
 - Metrics: MSE, PSNR, global SSIM, gradient correlation, radial frequency recovery,
   diffraction-relative recovery, false-detail energy, and optional warp recovery error.
@@ -64,6 +65,15 @@ Create a global-translation aligned baseline using only the input frames:
 
 ```bash
 seeingbench translation-stack --case benchmarks/generated/demo --output outputs/demo-translation
+```
+
+Create a local block-translation aligned baseline using only the input frames:
+
+```bash
+seeingbench local-block-stack \
+  --case benchmarks/generated/demo \
+  --output outputs/demo-local-block \
+  --block-size 32
 ```
 
 Create a synthetic-only oracle upper-bound stack using retained truth warp fields:

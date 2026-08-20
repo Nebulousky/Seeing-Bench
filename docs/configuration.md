@@ -92,6 +92,27 @@ The following flags override config-file values:
 The source image size flags `--height` and `--width` apply only when no `--truth` image is
 provided and the CLI generates its built-in synthetic crater field.
 
+## Synthetic Sweep Config
+
+The experiment command accepts a separate JSON object:
+
+```bash
+seeingbench experiment synthetic-sweep --config <path> --output <dir>
+```
+
+It uses the simulation fields above where names match, plus:
+
+| Field | Type | Default | Units | Meaning |
+|---|---:|---:|---|---|
+| `name` | string | `phase1-smoke` | label | Name written to sweep summaries. |
+| `height` | integer | `64` | pixels | Generated crater-field height. |
+| `width` | integer | `64` | pixels | Generated crater-field width. |
+| `crater_count` | integer | `40` | craters | Number of synthetic craters in the source image. |
+| `source_seed` | integer | `0` | seed | Seed for the generated source image. |
+| `warp_strengths` | array | `[0.0, 0.5, 1.0, 2.0]` | multiplier | Multipliers applied to every base warp scale. |
+| `noise_sigmas` | array | `[0.0, 0.01, 0.03, 0.05]` | image units | Noise levels crossed with each warp strength. |
+| `local_block_size_px` | integer | `32` | pixels | Block size used by the local block-stack baseline in the sweep. |
+
 ## Validation Rules
 
 - Image arrays must be finite two-dimensional `float64` values.

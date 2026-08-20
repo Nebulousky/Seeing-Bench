@@ -25,6 +25,7 @@ def test_synthetic_sweep_config_loads_from_json(tmp_path: Path) -> None:
                 "telescope_psf_sigma_px": 0.7,
                 "seeing_blur_sigma_px": 0.2,
                 "global_motion_rms_px": 0.4,
+                "local_block_size_px": 8,
                 "frequency_bins": 4,
                 "base_warp_scales": [
                     {
@@ -46,6 +47,7 @@ def test_synthetic_sweep_config_loads_from_json(tmp_path: Path) -> None:
     assert config.telescope_psf_sigma_px == 0.7
     assert config.seeing_blur_sigma_px == 0.2
     assert config.global_motion_rms_px == 0.4
+    assert config.local_block_size_px == 8
     assert config.base_warp_scales[0].name == "test"
 
 
@@ -62,12 +64,13 @@ def test_synthetic_sweep_writes_metrics_and_summary(tmp_path: Path) -> None:
         telescope_psf_sigma_px=0.0,
         seeing_blur_sigma_px=0.0,
         global_motion_rms_px=0.0,
+        local_block_size_px=8,
         frequency_bins=4,
     )
 
     comparison = run_synthetic_sweep(config, tmp_path / "sweep")
 
-    assert len(comparison["rows"]) == 8
+    assert len(comparison["rows"]) == 10
     assert (tmp_path / "sweep" / "comparison.json").exists()
     assert (tmp_path / "sweep" / "summary.md").exists()
     assert (
@@ -77,5 +80,6 @@ def test_synthetic_sweep_writes_metrics_and_summary(tmp_path: Path) -> None:
         "single_frame",
         "mean_stack",
         "translation_stack",
+        "local_block_stack",
         "oracle_aligned_stack",
     }

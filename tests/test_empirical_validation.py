@@ -14,15 +14,20 @@ from seeingbench.evaluation.structure import gradient_correlation
 from seeingbench.io.images import write_grayscale_tiff
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
+    LocalBlockAlignedStackAdapter,
     OracleAlignedStackAdapter,
     TranslationAlignedStackAdapter,
 )
-from seeingbench.reconstruction.alignment import constant_displacement, estimate_integer_translation
+from seeingbench.reconstruction.alignment import (
+    constant_displacement,
+    estimate_integer_translation,
+    estimate_local_translation_field,
+)
 from seeingbench.simulation.atmosphere import SeeingModel, SimulationResult
 from seeingbench.simulation.config import SeeingSimulationConfig, WarpScaleConfig
 from seeingbench.simulation.psf import gaussian_blur
 from seeingbench.simulation.source import crater_field
-from seeingbench.simulation.warp import apply_warp
+from seeingbench.simulation.warp import apply_warp, resize_bilinear
 
 
 def test_mean_stack_empirically_beats_single_noisy_frame(tmp_path: Path) -> None:
@@ -243,6 +248,74 @@ def test_translation_stack_recovers_controlled_global_shifts(tmp_path: Path) -> 
     assert oracle_metadata["experiment_class"] == "prior-informed synthetic oracle"
 
 
+def test_local_block_stack_improves_spatially_varying_shift_alignment(
+    tmp_path: Path,
+) -> None:
+    truth = crater_field((64, 64), crater_count=45, seed=30)
+    coarse_fields = (
+        (((0.0, 0.0), (0.0, 0.0)), ((0.0, 0.0), (0.0, 0.0))),
+        (((2.0, 0.0), (-2.0, 0.0)), ((1.0, 0.0), (-1.0, 0.0))),
+        (((-2.0, 1.0), (1.0, -1.0)), ((2.0, -1.0), (-1.0, 1.0))),
+        (((1.0, -1.0), (-1.0, 1.0)), ((2.0, 0.0), (-2.0, 0.0))),
+    )
+    warp_fields = np.stack(
+        [upsample_coarse_displacement(truth.shape, field) for field in coarse_fields]
+    )
+    frames = np.stack([apply_warp(truth, field) for field in warp_fields])
+    simulation = SimulationResult(
+        frames=frames,
+        latent_truth=truth,
+        warp_fields=warp_fields,
+        warp_components={},
+        psf_information={},
+        noise_information={},
+        metadata={
+            "benchmark_mode": "synthetic",
+            "validation_boundary": "controlled local-translation test",
+        },
+    )
+    case_dir = tmp_path / "case"
+    save_simulation_case(simulation, case_dir)
+
+    estimated_field = estimate_local_translation_field(frames[0], frames[1], block_size_px=32)
+    assert estimated_field.shape == (*truth.shape, 2)
+    assert float(np.std(estimated_field[..., 0])) > 0.5
+
+    translation_dir = tmp_path / "translation"
+    translation_adapter = TranslationAlignedStackAdapter()
+    translation_adapter.prepare(case_dir, translation_dir)
+    translation_adapter.execute(case_dir, translation_dir)
+    translation_adapter.collect_results(case_dir, translation_dir)
+
+    local_dir = tmp_path / "local"
+    stale_warp_dir = local_dir / "warp_fields"
+    stale_warp_dir.mkdir(parents=True)
+    np.save(stale_warp_dir / "warp_000001.npy", warp_fields[0])
+    local_adapter = LocalBlockAlignedStackAdapter(block_size_px=32)
+    local_adapter.prepare(case_dir, local_dir)
+    local_adapter.execute(case_dir, local_dir)
+    local_adapter.collect_results(case_dir, local_dir)
+
+    translation = evaluate_reconstruction(
+        case_dir,
+        translation_dir,
+        algorithm="translation_stack",
+    )
+    local = evaluate_reconstruction(case_dir, local_dir, algorithm="local_block_stack")
+    local_metadata = json.loads((local_dir / "metadata.json").read_text(encoding="utf-8"))
+
+    assert local.image_similarity["mse"] < translation.image_similarity["mse"] * 0.6
+    assert local.image_similarity["psnr_db"] > translation.image_similarity["psnr_db"] + 3.5
+    assert (
+        local.structural_accuracy["gradient_correlation"]
+        > translation.structural_accuracy["gradient_correlation"]
+    )
+    assert local.warp_recovery is None
+    assert not (local_dir / "warp_fields").exists()
+    assert (local_dir / "estimated_local_translation_fields.npz").exists()
+    assert local_metadata["block_size_px"] == 32
+
+
 def test_frequency_recovery_ranks_blur_levels() -> None:
     truth = crater_field((64, 64), crater_count=40, seed=12)
     mildly_blurred = gaussian_blur(truth, sigma_px=0.6)
@@ -262,3 +335,14 @@ def test_frequency_recovery_ranks_blur_levels() -> None:
 
 def apply_known_translation(truth: np.ndarray, u_px: float, v_px: float) -> np.ndarray:
     return apply_warp(truth, constant_displacement(truth.shape, u_px, v_px))
+
+
+def upsample_coarse_displacement(
+    shape: tuple[int, int],
+    coarse_values: tuple[tuple[tuple[float, float], ...], ...],
+) -> np.ndarray:
+    coarse = np.asarray(coarse_values, dtype=np.float64)
+    field = np.empty((*shape, 2), dtype=np.float64)
+    field[..., 0] = resize_bilinear(coarse[..., 0], shape)
+    field[..., 1] = resize_bilinear(coarse[..., 1], shape)
+    return field

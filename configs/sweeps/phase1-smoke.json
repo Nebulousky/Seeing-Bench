@@ -12,6 +12,7 @@
   "telescope_psf_sigma_px": 1.656,
   "seeing_blur_sigma_px": 2.0,
   "global_motion_rms_px": 0.75,
+  "local_block_size_px": 32,
   "frequency_bins": 12,
   "base_warp_scales": [
     {

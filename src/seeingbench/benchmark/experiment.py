@@ -16,6 +16,7 @@ from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluatio
 from seeingbench.io.images import load_grayscale_image, write_grayscale_tiff
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
+    LocalBlockAlignedStackAdapter,
     OracleAlignedStackAdapter,
     TranslationAlignedStackAdapter,
 )
@@ -41,6 +42,7 @@ class SyntheticSweepConfig:
     telescope_psf_sigma_px: float = 1.656
     seeing_blur_sigma_px: float = 2.0
     global_motion_rms_px: float = 0.75
+    local_block_size_px: int = 32
     frequency_bins: int = 12
     base_warp_scales: tuple[WarpScaleConfig, ...] = (
         WarpScaleConfig("large", amplitude_px=1.5, correlation_px=64.0),
@@ -64,6 +66,7 @@ class SyntheticSweepConfig:
             "telescope_psf_sigma_px",
             "seeing_blur_sigma_px",
             "global_motion_rms_px",
+            "local_block_size_px",
             "frequency_bins",
             "base_warp_scales",
         }
@@ -86,6 +89,7 @@ class SyntheticSweepConfig:
             ),
             seeing_blur_sigma_px=float(data.get("seeing_blur_sigma_px", cls.seeing_blur_sigma_px)),
             global_motion_rms_px=float(data.get("global_motion_rms_px", cls.global_motion_rms_px)),
+            local_block_size_px=int(data.get("local_block_size_px", cls.local_block_size_px)),
             frequency_bins=int(data.get("frequency_bins", cls.frequency_bins)),
             base_warp_scales=_warp_scales(data.get("base_warp_scales", cls.base_warp_scales)),
         )
@@ -115,6 +119,8 @@ class SyntheticSweepConfig:
             raise ValueError("seeing_blur_sigma_px must be non-negative")
         if self.global_motion_rms_px < 0:
             raise ValueError("global_motion_rms_px must be non-negative")
+        if self.local_block_size_px < 4:
+            raise ValueError("local_block_size_px must be at least 4")
         if self.frequency_bins <= 0:
             raise ValueError("frequency_bins must be positive")
         if not self.base_warp_scales:
@@ -158,7 +164,12 @@ def run_synthetic_sweep(config: SyntheticSweepConfig, output_dir: Path) -> dict[
 
             result_root = output_dir / "results" / scenario
             _recreate_dir(result_root)
-            reports = _evaluate_scenario(case_dir, result_root, config.frequency_bins)
+            reports = _evaluate_scenario(
+                case_dir,
+                result_root,
+                config.frequency_bins,
+                config.local_block_size_px,
+            )
             rows.extend(
                 _summary_row(scenario, warp_strength, noise_sigma, report, metrics_path)
                 for report, metrics_path in reports
@@ -210,6 +221,7 @@ def _evaluate_scenario(
     case_dir: Path,
     result_root: Path,
     frequency_bins: int,
+    local_block_size_px: int,
 ) -> list[tuple[EvaluationReport, Path]]:
     result_root.mkdir(parents=True, exist_ok=True)
 
@@ -245,6 +257,12 @@ def _evaluate_scenario(
     translation_adapter.execute(case_dir, translation_dir)
     translation_adapter.collect_results(case_dir, translation_dir)
 
+    local_block_dir = result_root / "local_block_stack"
+    local_block_adapter = LocalBlockAlignedStackAdapter(block_size_px=local_block_size_px)
+    local_block_adapter.prepare(case_dir, local_block_dir)
+    local_block_adapter.execute(case_dir, local_block_dir)
+    local_block_adapter.collect_results(case_dir, local_block_dir)
+
     oracle_dir = result_root / "oracle_aligned_stack"
     oracle_adapter = OracleAlignedStackAdapter()
     oracle_adapter.prepare(case_dir, oracle_dir)
@@ -256,6 +274,7 @@ def _evaluate_scenario(
         ("single_frame", single_dir),
         ("mean_stack", mean_dir),
         ("translation_stack", translation_dir),
+        ("local_block_stack", local_block_dir),
         ("oracle_aligned_stack", oracle_dir),
     ):
         report = evaluate_reconstruction(
@@ -343,6 +362,7 @@ def _config_to_dict(config: SyntheticSweepConfig) -> dict[str, Any]:
         "telescope_psf_sigma_px": config.telescope_psf_sigma_px,
         "seeing_blur_sigma_px": config.seeing_blur_sigma_px,
         "global_motion_rms_px": config.global_motion_rms_px,
+        "local_block_size_px": config.local_block_size_px,
         "frequency_bins": config.frequency_bins,
         "base_warp_scales": [
             {

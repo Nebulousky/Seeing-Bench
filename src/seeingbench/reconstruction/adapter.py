@@ -14,7 +14,11 @@ import numpy as np
 
 from seeingbench.benchmark.case import load_benchmark_case
 from seeingbench.io.images import load_grayscale_image, write_grayscale_tiff
-from seeingbench.reconstruction.alignment import constant_displacement, estimate_integer_translation
+from seeingbench.reconstruction.alignment import (
+    constant_displacement,
+    estimate_integer_translation,
+    estimate_local_translation_field,
+)
 from seeingbench.simulation.warp import apply_warp
 
 
@@ -187,6 +191,71 @@ class TranslationAlignedStackAdapter:
     def collect_results(self, benchmark_case: Path, result_dir: Path) -> None:
         if not (result_dir / "reconstruction.tif").exists():
             raise FileNotFoundError("translation stack did not produce reconstruction.tif")
+
+
+@dataclass(frozen=True)
+class LocalBlockAlignedStackAdapter:
+    """Estimate local frame translations on a block grid and average aligned frames."""
+
+    block_size_px: int = 32
+    name: str = "local_block_stack"
+
+    def prepare(self, benchmark_case: Path, result_dir: Path) -> None:
+        if self.block_size_px < 4:
+            raise ValueError("block_size_px must be at least 4")
+        result_dir.mkdir(parents=True, exist_ok=True)
+        warp_dir = result_dir / "warp_fields"
+        if warp_dir.exists():
+            shutil.rmtree(warp_dir)
+
+    def execute(self, benchmark_case: Path, result_dir: Path) -> None:
+        frames = [
+            load_grayscale_image(path)
+            for path in sorted((benchmark_case / "input").glob("frame_*.tif"))
+        ]
+        if not frames:
+            raise FileNotFoundError(f"no input frames found under {benchmark_case / 'input'}")
+        shape = frames[0].shape
+        if any(frame.shape != shape for frame in frames):
+            raise ValueError("all input frames must have the same shape")
+
+        reference = frames[0]
+        estimated_fields: list[np.ndarray] = []
+        aligned_frames: list[np.ndarray] = []
+        for frame in frames:
+            estimated_field = estimate_local_translation_field(
+                reference,
+                frame,
+                block_size_px=self.block_size_px,
+            )
+            estimated_fields.append(estimated_field)
+            aligned_frames.append(apply_warp(frame, -estimated_field))
+
+        reconstruction = np.clip(np.mean(np.stack(aligned_frames), axis=0), 0.0, 1.0).astype(
+            np.float64
+        )
+        write_grayscale_tiff(result_dir / "reconstruction.tif", reconstruction)
+        np.savez_compressed(
+            result_dir / "estimated_local_translation_fields.npz",
+            fields=np.stack(estimated_fields),
+        )
+        (result_dir / "metadata.json").write_text(
+            json.dumps(
+                {
+                    "adapter": self.name,
+                    "frame_count": len(frames),
+                    "method": "phase-correlation integer local block translation alignment",
+                    "reference_frame": 1,
+                    "block_size_px": self.block_size_px,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    def collect_results(self, benchmark_case: Path, result_dir: Path) -> None:
+        if not (result_dir / "reconstruction.tif").exists():
+            raise FileNotFoundError("local block stack did not produce reconstruction.tif")
 
 
 @dataclass(frozen=True)

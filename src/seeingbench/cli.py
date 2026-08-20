@@ -21,6 +21,7 @@ from seeingbench.datasets.manifests import fetch_manifest_metadata, validate_man
 from seeingbench.io.images import load_grayscale_image
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
+    LocalBlockAlignedStackAdapter,
     OracleAlignedStackAdapter,
     TranslationAlignedStackAdapter,
     copy_manual_reconstruction,
@@ -70,6 +71,15 @@ def _build_parser() -> argparse.ArgumentParser:
     translation.add_argument("--case", required=True, type=Path)
     translation.add_argument("--output", required=True, type=Path)
     translation.set_defaults(func=_translation_stack)
+
+    local_block = subparsers.add_parser(
+        "local-block-stack",
+        help="create a local block-translation aligned stack baseline",
+    )
+    local_block.add_argument("--case", required=True, type=Path)
+    local_block.add_argument("--output", required=True, type=Path)
+    local_block.add_argument("--block-size", type=int, default=32)
+    local_block.set_defaults(func=_local_block_stack)
 
     oracle = subparsers.add_parser(
         "oracle-stack",
@@ -212,6 +222,14 @@ def _baseline_stack(args: argparse.Namespace) -> int:
 
 def _translation_stack(args: argparse.Namespace) -> int:
     adapter = TranslationAlignedStackAdapter()
+    adapter.prepare(args.case, args.output)
+    adapter.execute(args.case, args.output)
+    adapter.collect_results(args.case, args.output)
+    return 0
+
+
+def _local_block_stack(args: argparse.Namespace) -> int:
+    adapter = LocalBlockAlignedStackAdapter(block_size_px=args.block_size)
     adapter.prepare(args.case, args.output)
     adapter.execute(args.case, args.output)
     adapter.collect_results(args.case, args.output)
