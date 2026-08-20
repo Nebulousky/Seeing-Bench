@@ -14,6 +14,7 @@ import numpy as np
 
 from seeingbench.benchmark.case import load_benchmark_case, load_input_frame, save_simulation_case
 from seeingbench.benchmark.compare import write_comparison_json, write_comparison_markdown
+from seeingbench.benchmark.experiment import load_synthetic_sweep_config, run_synthetic_sweep
 from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
 from seeingbench.datasets.manifests import fetch_manifest_metadata, validate_manifest_files
@@ -95,6 +96,17 @@ def _build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--output", required=True, type=Path)
     compare.add_argument("--format", choices=("markdown", "json"), default="markdown")
     compare.set_defaults(func=_compare)
+
+    experiment = subparsers.add_parser("experiment", help="experiment orchestration")
+    experiment_subparsers = experiment.add_subparsers(required=True)
+
+    synthetic_sweep = experiment_subparsers.add_parser(
+        "synthetic-sweep",
+        help="run a small synthetic parameter sweep",
+    )
+    synthetic_sweep.add_argument("--config", required=True, type=Path)
+    synthetic_sweep.add_argument("--output", required=True, type=Path)
+    synthetic_sweep.set_defaults(func=_experiment_synthetic_sweep)
 
     datasets = subparsers.add_parser("datasets", help="dataset manifest utilities")
     dataset_subparsers = datasets.add_subparsers(required=True)
@@ -237,6 +249,13 @@ def _compare(args: argparse.Namespace) -> int:
         write_comparison_json(args.inputs, args.output)
     else:
         write_comparison_markdown(args.inputs, args.output)
+    return 0
+
+
+def _experiment_synthetic_sweep(args: argparse.Namespace) -> int:
+    config = load_synthetic_sweep_config(args.config)
+    run_synthetic_sweep(config, args.output)
+    sys.stdout.write(f"{args.output / 'summary.md'}\n")
     return 0
 
 

@@ -93,6 +93,14 @@ seeingbench compare \
   --output outputs/comparison.md
 ```
 
+Run a compact empirical synthetic sweep across seeing and noise settings:
+
+```bash
+seeingbench experiment synthetic-sweep \
+  --config configs/sweeps/phase1-smoke.json \
+  --output outputs/sweeps/phase1-smoke
+```
+
 Validate candidate dataset manifests without downloading bulk data:
 
 ```bash

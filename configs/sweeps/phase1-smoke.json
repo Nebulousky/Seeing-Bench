@@ -1,0 +1,30 @@
+{
+  "name": "phase1-smoke",
+  "height": 64,
+  "width": 64,
+  "crater_count": 40,
+  "source_seed": 3,
+  "frame_count": 8,
+  "random_seed": 100,
+  "temporal_correlation": 0.8,
+  "warp_strengths": [0.0, 0.5, 1.0, 2.0],
+  "noise_sigmas": [0.0, 0.01, 0.03, 0.05],
+  "frequency_bins": 12,
+  "base_warp_scales": [
+    {
+      "name": "large",
+      "amplitude_px": 1.5,
+      "correlation_px": 64.0
+    },
+    {
+      "name": "medium",
+      "amplitude_px": 0.7,
+      "correlation_px": 24.0
+    },
+    {
+      "name": "fine",
+      "amplitude_px": 0.25,
+      "correlation_px": 8.0
+    }
+  ]
+}
