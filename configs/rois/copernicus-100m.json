@@ -9,13 +9,13 @@
   "required_products": [
     {
       "role": "reflectance",
-      "manifest": "manifests/lroc_wac_empirical_reflectance.json",
+      "manifest": "manifests/rois/copernicus_wac_emp_643nm.json",
       "required": true,
       "notes": "Albedo/texture source for real lunar reference rendering."
     },
     {
       "role": "terrain",
-      "manifest": "manifests/lroc_wac_gld100.json",
+      "manifest": "manifests/rois/copernicus_wac_gld100.json",
       "required": true,
       "notes": "Approximately 100 m/pixel terrain candidate for non-polar rendering."
     },

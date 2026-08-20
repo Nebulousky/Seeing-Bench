@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
-from seeingbench.datasets.manifests import DatasetManifest, load_manifest
+from seeingbench.datasets.manifests import DatasetManifest, ProductFile, load_manifest
 
 SUPPORTED_CHECKSUMS = ("sha256", "sha1", "md5")
 
@@ -128,6 +128,14 @@ def resolve_manifest_cache_path(manifest: DatasetManifest, cache_root: Path) -> 
     return cache_root / manifest.local_destination
 
 
+def resolve_product_file_cache_path(product: ProductFile, cache_root: Path) -> Path:
+    """Resolve a product file's repository-relative destination under ``cache_root``."""
+
+    product.validate()
+    _validate_relative_path(product.local_path, "product file local_path")
+    return cache_root / product.local_path
+
+
 def build_roi_readiness_report(
     roi_path: Path,
     cache_root: Path,
@@ -190,13 +198,21 @@ def _product_status(
     manifest_path = manifest_root / requirement.manifest
     manifest = load_manifest(manifest_path)
     cache_path = resolve_manifest_cache_path(manifest, cache_root)
-    presence, path_type, size_bytes = _presence(cache_path)
-    checksum_status, checksum_algorithm, computed_checksum = _checksum_status(
-        cache_path,
-        manifest.checksum,
-        presence,
-        path_type,
-    )
+    if manifest.product_files:
+        files = [_product_file_status(product, cache_root) for product in manifest.product_files]
+        presence, path_type, size_bytes = _aggregate_file_presence(files)
+        checksum_status = _aggregate_file_checksum_status(files)
+        checksum_algorithm = None
+        computed_checksum = None
+    else:
+        files = []
+        presence, path_type, size_bytes = _presence(cache_path)
+        checksum_status, checksum_algorithm, computed_checksum = _checksum_status(
+            cache_path,
+            manifest.checksum,
+            presence,
+            path_type,
+        )
     manifest_status = _manifest_status(manifest)
     return {
         "role": requirement.role,
@@ -217,6 +233,36 @@ def _product_status(
         "checksum_algorithm": checksum_algorithm,
         "computed_checksum": computed_checksum,
         "checksum_status": checksum_status,
+        "file_count": len(files),
+        "missing_file_count": sum(1 for file in files if file["presence"] != "present"),
+        "files": files,
+    }
+
+
+def _product_file_status(product: ProductFile, cache_root: Path) -> dict[str, Any]:
+    cache_path = resolve_product_file_cache_path(product, cache_root)
+    presence, path_type, size_bytes = _presence(cache_path)
+    checksum_status, checksum_algorithm, computed_checksum = _checksum_status(
+        cache_path,
+        product.checksum,
+        presence,
+        path_type,
+    )
+    size_status = _size_status(size_bytes, product.expected_size_bytes, presence, path_type)
+    return {
+        "name": product.name,
+        "source": product.url,
+        "local_path": str(cache_path),
+        "presence": presence,
+        "path_type": path_type,
+        "size_bytes": size_bytes,
+        "expected_size_bytes": product.expected_size_bytes,
+        "size_status": size_status,
+        "declared_checksum": product.checksum,
+        "checksum_algorithm": checksum_algorithm,
+        "computed_checksum": computed_checksum,
+        "checksum_status": checksum_status,
+        "purpose": product.purpose,
     }
 
 
@@ -228,6 +274,35 @@ def _presence(path: Path) -> tuple[str, str, int | None]:
     if path.is_dir():
         return "present", "directory", _directory_size(path)
     return "present", "other", None
+
+
+def _aggregate_file_presence(files: list[dict[str, Any]]) -> tuple[str, str, int | None]:
+    if not files:
+        return "missing", "missing", None
+    present_count = sum(1 for file in files if file["presence"] == "present")
+    size_bytes = sum(
+        int(file["size_bytes"]) for file in files if isinstance(file["size_bytes"], int)
+    )
+    if present_count == 0:
+        return "missing", "file_set", size_bytes
+    if present_count == len(files):
+        return "present", "file_set", size_bytes
+    return "partial", "file_set", size_bytes
+
+
+def _aggregate_file_checksum_status(files: list[dict[str, Any]]) -> str:
+    statuses = [str(file["checksum_status"]) for file in files]
+    if any(status == "mismatch" for status in statuses):
+        return "mismatch"
+    if any(status == "not_file" for status in statuses):
+        return "not_file"
+    if any(status == "not_declared" for status in statuses):
+        return "not_declared"
+    if any(status == "missing" for status in statuses):
+        return "missing"
+    if statuses and all(status == "ok" for status in statuses):
+        return "ok"
+    return "unknown"
 
 
 def _checksum_status(
@@ -245,6 +320,21 @@ def _checksum_status(
         return "not_file", algorithm, None
     actual = _file_checksum(path, algorithm)
     return ("ok" if actual.lower() == expected.lower() else "mismatch", algorithm, actual)
+
+
+def _size_status(
+    size_bytes: int | None,
+    expected_size_bytes: int | None,
+    presence: str,
+    path_type: str,
+) -> str:
+    if expected_size_bytes is None:
+        return "not_declared"
+    if presence != "present":
+        return "missing"
+    if path_type != "file":
+        return "not_file"
+    return "ok" if size_bytes == expected_size_bytes else "mismatch"
 
 
 def _parse_checksum(value: str) -> tuple[str, str]:
@@ -278,7 +368,11 @@ def _directory_size(path: Path) -> int:
 
 
 def _manifest_status(manifest: DatasetManifest) -> str:
-    if manifest.checksum and "TBD" not in manifest.version and "TBD" not in manifest.license:
+    has_checksums = manifest.checksum is not None or (
+        bool(manifest.product_files)
+        and all(product.checksum is not None for product in manifest.product_files)
+    )
+    if has_checksums and "TBD" not in manifest.version and "TBD" not in manifest.license:
         return "verified"
     return "candidate"
 

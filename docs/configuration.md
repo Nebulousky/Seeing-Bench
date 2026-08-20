@@ -152,3 +152,14 @@ Each `required_products` entry has:
 | `manifest` | string | Repository-relative path to a dataset manifest. |
 | `required` | boolean | Whether missing or unresolved status blocks readiness; default `true`. |
 | `notes` | string | Optional role-specific context. |
+
+Dataset manifests may also declare `product_files` for ROI-specific file requirements:
+
+| Field | Type | Meaning |
+|---|---:|---|
+| `name` | string | Stable file label. |
+| `url` | string | Official HTTP(S) source URL. |
+| `local_path` | string | Repository-relative expected cache path. |
+| `checksum` | string or null | Optional `<algorithm>:<hex>` checksum; supported algorithms are `sha256`, `sha1`, and `md5`. |
+| `expected_size_bytes` | integer or null | Optional exact byte size check for already-local files. |
+| `purpose` | string | Optional explanation of how the file supports the ROI. |

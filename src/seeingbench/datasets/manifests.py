@@ -27,6 +27,7 @@ TEXT_METADATA_SUFFIXES = (
     ".txt",
     ".xml",
 )
+SUPPORTED_CHECKSUMS = ("sha256", "sha1", "md5")
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,47 @@ class MetadataDocument:
 
 
 @dataclass(frozen=True)
+class ProductFile:
+    """Specific bulk product expected in the local cache, but not fetched automatically."""
+
+    name: str
+    url: str
+    local_path: str
+    checksum: str | None
+    expected_size_bytes: int | None = None
+    purpose: str = ""
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ProductFile:
+        required = {"name", "url", "local_path"}
+        missing = sorted(required - set(data))
+        if missing:
+            raise ValueError(f"product file is missing required field(s): {', '.join(missing)}")
+        product = cls(
+            name=str(data["name"]),
+            url=str(data["url"]),
+            local_path=str(data["local_path"]),
+            checksum=None if data.get("checksum") is None else str(data["checksum"]),
+            expected_size_bytes=None
+            if data.get("expected_size_bytes") is None
+            else int(data["expected_size_bytes"]),
+            purpose=str(data.get("purpose", "")),
+        )
+        product.validate()
+        return product
+
+    def validate(self) -> None:
+        if not self.name:
+            raise ValueError("product file name must be non-empty")
+        _validate_http_url(self.url, "product file url")
+        _validate_relative_path(self.local_path, "product file local_path")
+        if self.checksum is not None:
+            _validate_checksum(self.checksum)
+        if self.expected_size_bytes is not None and self.expected_size_bytes <= 0:
+            raise ValueError("product file expected_size_bytes must be positive")
+
+
+@dataclass(frozen=True)
 class DatasetManifest:
     """Metadata needed to acquire and verify a dataset without committing it."""
 
@@ -84,6 +126,7 @@ class DatasetManifest:
     coordinate_system: str
     notes: str = ""
     metadata_documents: tuple[MetadataDocument, ...] = field(default_factory=tuple)
+    product_files: tuple[ProductFile, ...] = field(default_factory=tuple)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> DatasetManifest:
@@ -104,6 +147,9 @@ class DatasetManifest:
         document_data = data.get("metadata_documents", [])
         if not isinstance(document_data, list):
             raise ValueError("metadata_documents must be a list")
+        product_data = data.get("product_files", [])
+        if not isinstance(product_data, list):
+            raise ValueError("product_files must be a list")
         manifest = cls(
             name=str(data["name"]),
             source=str(data["source"]),
@@ -117,6 +163,7 @@ class DatasetManifest:
             coordinate_system=str(data["coordinate_system"]),
             notes=str(data.get("notes", "")),
             metadata_documents=tuple(MetadataDocument.from_dict(item) for item in document_data),
+            product_files=tuple(_product_file(item) for item in product_data),
         )
         manifest.validate()
         return manifest
@@ -138,8 +185,12 @@ class DatasetManifest:
             raise ValueError(f"manifest field(s) must be non-empty: {', '.join(empty)}")
         _validate_http_url(self.source, "source")
         _validate_relative_path(self.local_destination, "local_destination")
+        if self.checksum is not None:
+            _validate_checksum(self.checksum)
         for document in self.metadata_documents:
             document.validate()
+        for product in self.product_files:
+            product.validate()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -164,7 +215,24 @@ class DatasetManifest:
                 }
                 for document in self.metadata_documents
             ],
+            "product_files": [
+                {
+                    "name": product.name,
+                    "url": product.url,
+                    "local_path": product.local_path,
+                    "checksum": product.checksum,
+                    "expected_size_bytes": product.expected_size_bytes,
+                    "purpose": product.purpose,
+                }
+                for product in self.product_files
+            ],
         }
+
+
+def _product_file(value: Any) -> ProductFile:
+    if not isinstance(value, dict):
+        raise ValueError("each product_files entry must be a JSON object")
+    return ProductFile.from_dict(value)
 
 
 def load_manifest(path: Path) -> DatasetManifest:
@@ -205,12 +273,17 @@ def _validate_one(path: Path) -> dict[str, Any]:
         "name": manifest.name,
         "source": manifest.source,
         "metadata_document_count": len(manifest.metadata_documents),
+        "product_file_count": len(manifest.product_files),
         "status": _verification_status(manifest),
     }
 
 
 def _verification_status(manifest: DatasetManifest) -> str:
-    if manifest.checksum and "TBD" not in manifest.version and "TBD" not in manifest.license:
+    has_checksums = manifest.checksum is not None or (
+        bool(manifest.product_files)
+        and all(product.checksum is not None for product in manifest.product_files)
+    )
+    if has_checksums and "TBD" not in manifest.version and "TBD" not in manifest.license:
         return "verified"
     return "candidate"
 
@@ -249,3 +322,15 @@ def _validate_relative_path(path: str, field_name: str) -> None:
     destination = Path(path)
     if ".." in destination.parts:
         raise ValueError(f"{field_name} must not escape the repository")
+
+
+def _validate_checksum(value: str) -> None:
+    if ":" not in value:
+        raise ValueError("checksum must use '<algorithm>:<hex>' format")
+    algorithm, checksum = value.split(":", 1)
+    if algorithm.lower() not in SUPPORTED_CHECKSUMS:
+        raise ValueError(
+            f"unsupported checksum algorithm {algorithm!r}; expected one of {SUPPORTED_CHECKSUMS}"
+        )
+    if not checksum:
+        raise ValueError("checksum value must be non-empty")

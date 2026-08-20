@@ -10,6 +10,7 @@ import pytest
 from seeingbench.datasets.manifests import (
     DatasetManifest,
     MetadataDocument,
+    ProductFile,
     fetch_manifest_metadata,
     validate_manifest_files,
 )
@@ -72,6 +73,47 @@ def test_metadata_document_rejects_large_limit() -> None:
         )
 
 
+def test_product_file_rejects_unsafe_local_path() -> None:
+    with pytest.raises(ValueError, match="must not escape"):
+        ProductFile.from_dict(
+            {
+                "name": "unsafe",
+                "url": "https://example.invalid/product.img",
+                "local_path": "../data/product.img",
+                "checksum": "sha256:abcd",
+            }
+        )
+
+
+def test_dataset_manifest_accepts_product_files() -> None:
+    data = _valid_manifest_data()
+    data["checksum"] = None
+    data["product_files"] = [
+        {
+            "name": "tile",
+            "url": "https://example.invalid/tile.img",
+            "local_path": "data/example/tile.img",
+            "checksum": "sha256:abcd",
+            "expected_size_bytes": 4,
+            "purpose": "test tile",
+        }
+    ]
+
+    manifest = DatasetManifest.from_dict(data)
+
+    assert manifest.product_files[0].name == "tile"
+    assert manifest.product_files[0].checksum == "sha256:abcd"
+    assert manifest.to_dict()["product_files"][0]["expected_size_bytes"] == 4
+
+
+def test_dataset_manifest_rejects_malformed_checksum() -> None:
+    data = _valid_manifest_data()
+    data["checksum"] = "sha512:abcd"
+
+    with pytest.raises(ValueError, match="unsupported checksum"):
+        DatasetManifest.from_dict(data)
+
+
 def test_validate_manifest_files_reports_candidate_status(tmp_path: Path) -> None:
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text(json.dumps(_valid_manifest_data()), encoding="utf-8")
@@ -85,6 +127,7 @@ def test_validate_manifest_files_reports_candidate_status(tmp_path: Path) -> Non
             "name": "Example",
             "source": "https://example.invalid/data",
             "metadata_document_count": 0,
+            "product_file_count": 0,
             "status": "candidate",
         }
     ]

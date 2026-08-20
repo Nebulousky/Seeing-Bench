@@ -1,0 +1,38 @@
+{
+  "name": "Copernicus ROI LROC WAC GLD100 terrain tile",
+  "source": "https://data.lroc.im-ldi.com/lroc/view_rdr_product/WAC_GLD100_E300N3150_100M",
+  "version": "RDR product page checked on 2026-08-20; exact PDS checksum unresolved",
+  "expected_size": "947.11 MB IMG or 473.67 MB browse TIF as reported by LROC product page",
+  "checksum": null,
+  "local_destination": "data/lroc/copernicus/wac_gld100",
+  "license": "TBD from PDS labels before distribution",
+  "provenance": "LROC WAC GLD100 global DTM tile WAC_GLD100_E300N3150_100M",
+  "resolution": "100 meters/pixel tile; formal effective resolution noted by LROC as closer to 300 meters",
+  "coordinate_system": "Equirectangular; 0 to 60 degrees north latitude, 270 to 360 degrees east longitude",
+  "notes": "Specific terrain tile covering Copernicus at 9.62N, 339.92E. Product files are declared for readiness checks only; SeeingBench does not download them automatically.",
+  "metadata_documents": [
+    {
+      "name": "LROC WAC_GLD100_E300N3150_100M product page",
+      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr_product/WAC_GLD100_E300N3150_100M",
+      "local_path": "data/metadata/lroc/wac_gld100_e300n3150_100m.html",
+      "expected_max_bytes": 200000,
+      "purpose": "Product extent, scale, and official download links for the Copernicus terrain tile."
+    }
+  ],
+  "product_files": [
+    {
+      "name": "WAC_GLD100_E300N3150_100M IMG",
+      "url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/DATA/SDP/WAC_GLD100/WAC_GLD100_E300N3150_100M.IMG",
+      "local_path": "data/lroc/copernicus/wac_gld100/WAC_GLD100_E300N3150_100M.IMG",
+      "checksum": null,
+      "purpose": "Primary PDS image product for the 100 m/pixel terrain tile."
+    },
+    {
+      "name": "WAC_GLD100_E300N3150_100M browse TIF",
+      "url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/EXTRAS/BROWSE/WAC_GLD100/WAC_GLD100_E300N3150_100M.TIF",
+      "local_path": "data/lroc/copernicus/wac_gld100/WAC_GLD100_E300N3150_100M.TIF",
+      "checksum": null,
+      "purpose": "Convenience GeoTIFF candidate for early renderer plumbing."
+    }
+  ]
+}

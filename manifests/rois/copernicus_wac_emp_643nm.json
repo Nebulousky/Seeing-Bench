@@ -1,0 +1,38 @@
+{
+  "name": "Copernicus ROI LROC WAC EMP 643 nm tile",
+  "source": "https://data.lroc.im-ldi.com/lroc/view_rdr_product/WAC_EMP_643NM_E300N3150_304P",
+  "version": "RDR product page checked on 2026-08-20; exact PDS checksum unresolved",
+  "expected_size": "1.86 GB IMG or 476.07 MB browse TIF as reported by LROC product page",
+  "checksum": null,
+  "local_destination": "data/lroc/copernicus/wac_emp_643nm",
+  "license": "TBD from PDS labels before distribution",
+  "provenance": "LROC WAC empirically normalized 643 nm mosaic tile WAC_EMP_643NM_E300N3150_304P",
+  "resolution": "304 pixels/degree; about 99.75 meters/pixel at equator",
+  "coordinate_system": "Equirectangular; 0 to 60 degrees north latitude, 270 to 360 degrees east longitude",
+  "notes": "Specific tile covering Copernicus at 9.62N, 339.92E. Product files are declared for readiness checks only; SeeingBench does not download them automatically.",
+  "metadata_documents": [
+    {
+      "name": "LROC WAC_EMP_643NM_E300N3150_304P product page",
+      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr_product/WAC_EMP_643NM_E300N3150_304P",
+      "local_path": "data/metadata/lroc/wac_emp_643nm_e300n3150_304p.html",
+      "expected_max_bytes": 200000,
+      "purpose": "Product extent, scale, and official download links for the Copernicus reflectance tile."
+    }
+  ],
+  "product_files": [
+    {
+      "name": "WAC_EMP_643NM_E300N3150_304P IMG",
+      "url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/DATA/MDR/WAC_EMP/WAC_EMP_643NM_E300N3150_304P.IMG",
+      "local_path": "data/lroc/copernicus/wac_emp_643nm/WAC_EMP_643NM_E300N3150_304P.IMG",
+      "checksum": null,
+      "purpose": "Primary PDS image product for the 643 nm reflectance tile."
+    },
+    {
+      "name": "WAC_EMP_643NM_E300N3150_304P browse TIF",
+      "url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/EXTRAS/BROWSE/WAC_EMP/WAC_EMP_643NM_E300N3150_304P.TIF",
+      "local_path": "data/lroc/copernicus/wac_emp_643nm/WAC_EMP_643NM_E300N3150_304P.TIF",
+      "checksum": null,
+      "purpose": "Convenience GeoTIFF candidate for early renderer plumbing."
+    }
+  ]
+}

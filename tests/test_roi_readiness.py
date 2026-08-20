@@ -13,6 +13,7 @@ from seeingbench.datasets.readiness import (
     build_roi_readiness_report,
     load_roi_config,
     resolve_manifest_cache_path,
+    resolve_product_file_cache_path,
 )
 
 
@@ -33,11 +34,14 @@ def test_sample_copernicus_roi_loads_manifest_roles() -> None:
     roi = load_roi_config(Path("configs/rois/copernicus-100m.json"))
 
     assert roi.name == "copernicus-100m-reference"
-    assert {product.role for product in roi.required_products} == {
+    manifests_by_role = {product.role: product.manifest for product in roi.required_products}
+    assert set(manifests_by_role) == {
         "geometry",
         "reflectance",
         "terrain",
     }
+    assert manifests_by_role["reflectance"] == "manifests/rois/copernicus_wac_emp_643nm.json"
+    assert manifests_by_role["terrain"] == "manifests/rois/copernicus_wac_gld100.json"
 
 
 def test_roi_readiness_reports_missing_candidate_products(tmp_path: Path) -> None:
@@ -110,6 +114,56 @@ def test_roi_readiness_blocks_checksum_mismatch(tmp_path: Path) -> None:
     assert report["products"][0]["checksum_status"] == "mismatch"
 
 
+def test_roi_readiness_reports_file_level_product_status(tmp_path: Path) -> None:
+    payload = b"tile bytes\n"
+    checksum = "sha256:" + hashlib.sha256(payload).hexdigest()
+    roi_path = tmp_path / "roi.json"
+    roi_path.write_text(json.dumps(_valid_roi_data()), encoding="utf-8")
+    manifest_path = tmp_path / "manifests" / "terrain.json"
+    manifest_path.parent.mkdir()
+    manifest = _manifest_data(checksum=None)
+    manifest["local_destination"] = "data/terrain"
+    manifest["product_files"] = [
+        {
+            "name": "terrain tile",
+            "url": "https://example.invalid/terrain/tile.img",
+            "local_path": "data/terrain/tile.img",
+            "checksum": checksum,
+            "expected_size_bytes": len(payload),
+            "purpose": "ROI terrain tile",
+        },
+        {
+            "name": "terrain label",
+            "url": "https://example.invalid/terrain/tile.lbl",
+            "local_path": "data/terrain/tile.lbl",
+            "checksum": "sha256:00",
+            "expected_size_bytes": 12,
+            "purpose": "PDS label",
+        },
+    ]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    product_path = tmp_path / "cache" / "data" / "terrain" / "tile.img"
+    product_path.parent.mkdir(parents=True)
+    product_path.write_bytes(payload)
+
+    report = build_roi_readiness_report(
+        roi_path,
+        cache_root=tmp_path / "cache",
+        manifest_root=tmp_path,
+    )
+
+    product = report["products"][0]
+    assert not report["ready"]
+    assert product["presence"] == "partial"
+    assert product["path_type"] == "file_set"
+    assert product["file_count"] == 2
+    assert product["missing_file_count"] == 1
+    assert product["checksum_status"] == "missing"
+    assert product["files"][0]["checksum_status"] == "ok"
+    assert product["files"][0]["size_status"] == "ok"
+    assert product["files"][1]["presence"] == "missing"
+
+
 def test_resolve_manifest_cache_path_uses_cache_root() -> None:
     manifest = _manifest_data(checksum=None)
     resolved = resolve_manifest_cache_path(
@@ -118,6 +172,26 @@ def test_resolve_manifest_cache_path_uses_cache_root() -> None:
     )
 
     assert resolved == Path("cache-root") / "data" / "terrain.bin"
+
+
+def test_resolve_product_file_cache_path_uses_cache_root() -> None:
+    product = DatasetManifest.from_dict(
+        {
+            **_manifest_data(checksum=None),
+            "product_files": [
+                {
+                    "name": "tile",
+                    "url": "https://example.invalid/tile.img",
+                    "local_path": "data/tiles/tile.img",
+                    "checksum": None,
+                }
+            ],
+        }
+    ).product_files[0]
+
+    assert resolve_product_file_cache_path(product, Path("cache-root")) == (
+        Path("cache-root") / "data" / "tiles" / "tile.img"
+    )
 
 
 def test_cli_writes_roi_readiness_report_and_returns_not_ready(tmp_path: Path) -> None:
@@ -147,6 +221,10 @@ def test_cli_writes_roi_readiness_report_and_returns_not_ready(tmp_path: Path) -
         "reflectance",
         "terrain",
     }
+    products_by_role = {product["role"]: product for product in report["products"]}
+    assert products_by_role["reflectance"]["file_count"] == 2
+    assert products_by_role["terrain"]["file_count"] == 2
+    assert products_by_role["geometry"]["file_count"] == 0
 
 
 def _valid_roi_data() -> dict[str, object]:

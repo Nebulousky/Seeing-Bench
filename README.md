@@ -142,6 +142,10 @@ seeingbench datasets roi-readiness \
   --output outputs/copernicus-readiness.json
 ```
 
+The Copernicus sample ROI points to exact LROC WAC reflectance and GLD100 tile manifests,
+but readiness remains blocked until those large files exist locally and exact checksums are
+declared.
+
 To evaluate an external reconstruction, place or import a `reconstruction.tif` into a result
 directory:
 

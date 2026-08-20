@@ -7,6 +7,10 @@ Phase 1 does not require any external dataset. The manifests in this directory r
 candidate Phase 2 product families and official source pages without implying that data has
 been downloaded, labels have been inspected, or checksums have been verified.
 
+`manifests/rois/` may contain narrower ROI-specific manifests with exact product file URLs
+and local cache paths. Those records still do not download data automatically, and a null
+checksum means the product remains unresolved for readiness purposes.
+
 Validate manifests:
 
 ```bash
