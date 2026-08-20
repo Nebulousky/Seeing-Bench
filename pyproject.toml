@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "seeingbench"
+version = "0.1.0"
+description = "Synthetic and orbital-truth benchmarks for atmospheric lunar reconstruction."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.11",
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+seeingbench = "seeingbench.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/seeingbench"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".claude", "project-spec.md"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "C4", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src/seeingbench", "tests"]
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.licence-check]
+allowed = ["MIT", "BSD", "Apache", "ISC", "PSF", "MPL", "Unlicense", "Zlib"]
+denied = ["GPL", "AGPL", "SSPL"]

@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The template ships without a pyproject.toml on purpose, so there may be
+      # nothing to install yet. Once one exists this installs the project and its
+      # dev extra; until then it is skipped and only the scaffolding is checked.
+      - name: Install project
+        run: |
+          if [ -f pyproject.toml ]; then
+            python -m pip install --upgrade pip
+            pip install -e ".[dev]"
+          else
+            echo "No pyproject.toml yet; skipping install."
+          fi
+
+      # Runs the gates declared in .claude/hooks/gates.py — the same list the
+      # pre-commit hook uses, so CI and the hook cannot disagree. Add or change a
+      # gate there, not here.
+      - name: Quality gates
+        run: python .claude/hooks/run_gates.py

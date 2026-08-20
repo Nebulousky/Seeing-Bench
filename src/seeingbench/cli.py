@@ -1,0 +1,190 @@
+"""Command-line interface for SeeingBench."""
+
+from __future__ import annotations
+
+import argparse
+import json
+from dataclasses import replace
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+from seeingbench.benchmark.case import load_benchmark_case, save_simulation_case
+from seeingbench.benchmark.report import write_markdown_report
+from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
+from seeingbench.io.images import load_grayscale_image
+from seeingbench.reconstruction.adapter import BaselineStackAdapter, copy_manual_reconstruction
+from seeingbench.simulation.atmosphere import SeeingModel
+from seeingbench.simulation.config import (
+    SeeingSimulationConfig,
+    WarpScaleConfig,
+    load_simulation_config,
+)
+from seeingbench.simulation.source import crater_field
+from seeingbench.visualization.diagnostics import write_diagnostics
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    return int(args.func(args))
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="seeingbench")
+    subparsers = parser.add_subparsers(required=True)
+
+    simulate = subparsers.add_parser("simulate", help="generate a synthetic benchmark case")
+    simulate.add_argument("--output", required=True, type=Path)
+    simulate.add_argument("--config", type=Path)
+    simulate.add_argument("--truth", type=Path)
+    simulate.add_argument("--frames", type=int)
+    simulate.add_argument("--seed", type=int)
+    simulate.add_argument("--height", type=int, default=256)
+    simulate.add_argument("--width", type=int, default=256)
+    simulate.add_argument("--noise-sigma", type=float)
+    simulate.add_argument("--warp-scale", type=float)
+    simulate.add_argument("--sensor-downsample", type=int)
+    simulate.set_defaults(func=_simulate)
+
+    baseline = subparsers.add_parser("baseline-stack", help="create a mean-stack baseline result")
+    baseline.add_argument("--case", required=True, type=Path)
+    baseline.add_argument("--output", required=True, type=Path)
+    baseline.set_defaults(func=_baseline_stack)
+
+    import_result = subparsers.add_parser(
+        "import-result", help="copy a reconstruction into result/"
+    )
+    import_result.add_argument("--source", required=True, type=Path)
+    import_result.add_argument("--output", required=True, type=Path)
+    import_result.set_defaults(func=_import_result)
+
+    evaluate = subparsers.add_parser("evaluate", help="evaluate result/reconstruction.tif")
+    evaluate.add_argument("--case", required=True, type=Path)
+    evaluate.add_argument("--result", required=True, type=Path)
+    evaluate.add_argument("--algorithm", default="manual")
+    evaluate.add_argument("--output", type=Path)
+    evaluate.add_argument("--diagnostics", type=Path)
+    evaluate.add_argument("--frequency-bins", type=int, default=24)
+    evaluate.set_defaults(func=_evaluate)
+
+    report = subparsers.add_parser("report", help="render metrics.json as Markdown")
+    report.add_argument("--metrics", required=True, type=Path)
+    report.add_argument("--output", required=True, type=Path)
+    report.set_defaults(func=_report)
+    return parser
+
+
+def _simulate(args: argparse.Namespace) -> int:
+    config = (
+        load_simulation_config(args.config) if args.config is not None else SeeingSimulationConfig()
+    )
+    config = _apply_simulation_overrides(config, args)
+
+    if args.truth is None:
+        truth = crater_field(shape=(args.height, args.width), seed=config.random_seed)
+        source_metadata = {
+            "source": "seeingbench synthetic crater_field",
+            "not_orbital_truth": True,
+        }
+    else:
+        truth = load_grayscale_image(args.truth)
+        source_metadata = {"source": str(args.truth), "not_orbital_truth": False}
+
+    sensor_width = truth.shape[1] // config.sensor_downsample_factor
+    sensor_height = truth.shape[0] // config.sensor_downsample_factor
+    config = replace(
+        config,
+        telescope=replace(
+            config.telescope,
+            sensor_width_px=config.telescope.sensor_width_px or sensor_width,
+            sensor_height_px=config.telescope.sensor_height_px or sensor_height,
+        ),
+    )
+    config.validate()
+    rng = np.random.default_rng(config.random_seed)
+    result = SeeingModel().generate(truth, config, rng)
+    result.metadata["source_image"] = source_metadata
+    if args.config is not None:
+        result.metadata["config_source"] = str(args.config)
+    save_simulation_case(result, args.output)
+    return 0
+
+
+def _apply_simulation_overrides(
+    config: SeeingSimulationConfig,
+    args: argparse.Namespace,
+) -> SeeingSimulationConfig:
+    if args.frames is not None:
+        config = replace(config, frame_count=args.frames)
+    if args.seed is not None:
+        config = replace(config, random_seed=args.seed)
+    if args.noise_sigma is not None:
+        config = replace(config, gaussian_noise_sigma=args.noise_sigma)
+    if args.sensor_downsample is not None:
+        config = replace(config, sensor_downsample_factor=args.sensor_downsample)
+    if args.warp_scale is not None:
+        config = replace(
+            config,
+            warp_scales=tuple(
+                WarpScaleConfig(
+                    scale.name,
+                    amplitude_px=scale.amplitude_px * args.warp_scale,
+                    correlation_px=scale.correlation_px,
+                )
+                for scale in config.warp_scales
+            ),
+        )
+    config.validate()
+    return config
+
+
+def _baseline_stack(args: argparse.Namespace) -> int:
+    adapter = BaselineStackAdapter()
+    adapter.prepare(args.case, args.output)
+    adapter.execute(args.case, args.output)
+    adapter.collect_results(args.case, args.output)
+    return 0
+
+
+def _import_result(args: argparse.Namespace) -> int:
+    copy_manual_reconstruction(args.source, args.output)
+    return 0
+
+
+def _evaluate(args: argparse.Namespace) -> int:
+    report = evaluate_reconstruction(
+        case_dir=args.case,
+        result_dir=args.result,
+        algorithm=args.algorithm,
+        frequency_bins=args.frequency_bins,
+    )
+    output = args.output or args.result / "metrics.json"
+    save_evaluation_report(report, output)
+    if args.diagnostics is not None:
+        case = load_benchmark_case(args.case)
+        reconstruction = load_grayscale_image(args.result / "reconstruction.tif")
+        diagnostics = write_diagnostics(
+            args.diagnostics,
+            case.latent_truth,
+            reconstruction,
+            report.frequency_recovery["bins"],
+        )
+        _append_diagnostics(output, diagnostics)
+    return 0
+
+
+def _report(args: argparse.Namespace) -> int:
+    write_markdown_report(args.metrics, args.output)
+    return 0
+
+
+def _append_diagnostics(report_path: Path, diagnostics: dict[str, Any]) -> None:
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["diagnostics"] = diagnostics
+    report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

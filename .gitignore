@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+
+# Virtual environment
+.venv/
+
+# IDE
+.idea/
+
+# Agent worktrees and local tool state
+.claude/worktrees/
+CLAUDE.local.md
+
+# Eval transcripts: run output, not source
+evals/results/
+
+# SeeingBench local data and derived products
+data/
+outputs/*
+!outputs/README.md
+benchmarks/generated/
+benchmarks/cases/
+*.npy
+*.npz
+*.tif
+*.tiff

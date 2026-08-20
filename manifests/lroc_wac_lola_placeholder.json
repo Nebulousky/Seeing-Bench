@@ -1,0 +1,13 @@
+{
+  "name": "LROC WAC + LOLA initial benchmark bundle",
+  "source": "TBD official NASA/PDS source URL",
+  "version": "TBD",
+  "expected_size": "15-25 GB",
+  "checksum": null,
+  "local_destination": "data",
+  "license": "TBD from official dataset provenance",
+  "provenance": "Placeholder only. Do not treat as a verified dataset manifest.",
+  "resolution": "approximately 100-120 m/pixel target for first implementation",
+  "coordinate_system": "TBD lunar coordinate convention; must specify east/west longitude before use",
+  "notes": "No data is downloaded by Phase 1."
+}
