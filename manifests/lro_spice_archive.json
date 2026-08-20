@@ -9,5 +9,21 @@
   "provenance": "PDS NAIF Node LRO SPICE archive",
   "resolution": "N/A geometry kernels",
   "coordinate_system": "SPICE kernels; use NAIF Toolkit/spiceypy and explicit lunar frame selection",
-  "notes": "Candidate geometry source for observer, Sun, Moon orientation, spacecraft ephemeris, and instrument frames."
+  "notes": "Candidate geometry source for observer, Sun, Moon orientation, spacecraft ephemeris, and instrument frames.",
+  "metadata_documents": [
+    {
+      "name": "NAIF LRO SPICE archive readme",
+      "url": "https://naif.jpl.nasa.gov/pub/naif/pds/data/lro-l-spice-6-v1.0/lrosp_1000/aareadme.htm",
+      "local_path": "data/metadata/spice/lrosp_1000_aareadme.htm",
+      "expected_max_bytes": 300000,
+      "purpose": "Archive structure, kernel types, and SPICE Toolkit access requirements."
+    },
+    {
+      "name": "NAIF LRO SPICE checksum table",
+      "url": "https://naif.jpl.nasa.gov/pub/naif/pds/data/lro-l-spice-6-v1.0/lrosp_1000/index/checksum.tab",
+      "local_path": "data/metadata/spice/lrosp_1000_checksum.tab",
+      "expected_max_bytes": 1000000,
+      "purpose": "Metadata checksum index for later exact kernel selection."
+    }
+  ]
 }

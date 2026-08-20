@@ -9,5 +9,14 @@
   "provenance": "LROC Team / Arizona State University WAC global morphologic map, 643 nm band",
   "resolution": "100 meters/pixel, 256 pixels/degree, and 128 pixels/degree tile options",
   "coordinate_system": "Product tiles use equirectangular and polar stereographic projections; longitude naming is east-positive in product names",
-  "notes": "Candidate Phase 2 surface morphology reference. No data downloaded by this manifest."
+  "notes": "Candidate Phase 2 surface morphology reference. No data downloaded by this manifest.",
+  "metadata_documents": [
+    {
+      "name": "LROC WAC_GLOBAL RDR product page",
+      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/WAC_GLOBAL",
+      "local_path": "data/metadata/lroc/wac_global_product_page.html",
+      "expected_max_bytes": 200000,
+      "purpose": "Product family, tile naming, projections, resolution options, and citation guidance."
+    }
+  ]
 }

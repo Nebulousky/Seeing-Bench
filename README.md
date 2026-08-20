@@ -86,6 +86,20 @@ seeingbench compare \
   --output outputs/comparison.md
 ```
 
+Validate candidate dataset manifests without downloading bulk data:
+
+```bash
+seeingbench datasets validate-manifest manifests/*.json --output outputs/manifest-check.json
+```
+
+Fetch only the small metadata documents explicitly listed by a manifest:
+
+```bash
+seeingbench datasets fetch-metadata \
+  manifests/lro_spice_archive.json \
+  --output-root data/cache
+```
+
 To evaluate an external reconstruction, place or import a `reconstruction.tif` into a result
 directory:
 

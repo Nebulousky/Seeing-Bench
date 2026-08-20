@@ -9,5 +9,14 @@
   "provenance": "GLD100 WAC stereo-derived DTM from LROC team / DLR",
   "resolution": "100 meters/pixel tiles; formal effective resolution noted by source as closer to 300 meters",
   "coordinate_system": "Equirectangular equatorial tiles and polar stereographic tiles; polar fill uses LOLA below non-100m products",
-  "notes": "Candidate terrain model for non-polar Phase 2 reference rendering."
+  "notes": "Candidate terrain model for non-polar Phase 2 reference rendering.",
+  "metadata_documents": [
+    {
+      "name": "LROC WAC_GLD100 RDR product page",
+      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/WAC_GLD100",
+      "local_path": "data/metadata/lroc/wac_gld100_product_page.html",
+      "expected_max_bytes": 200000,
+      "purpose": "Product family, coverage, resolution caveats, tile naming, and citation guidance."
+    }
+  ]
 }

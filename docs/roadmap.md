@@ -23,6 +23,8 @@ same metrics from the same seed and config.
 
 Add manifests, explicit download commands, checksum validation, local cache layout, ROI
 extraction, and basic map reprojection for approximately 100 m/pixel public lunar products.
+Metadata-only validation/fetching exists before bulk downloads so product labels, checksums,
+and provenance can be resolved first.
 
 **Exit:** a documented ROI can be constructed from verified local orbital datasets without
 committing raw data to Git.

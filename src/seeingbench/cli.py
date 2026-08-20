@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import replace
+from glob import glob
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +16,7 @@ from seeingbench.benchmark.case import load_benchmark_case, load_input_frame, sa
 from seeingbench.benchmark.compare import write_comparison_json, write_comparison_markdown
 from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
+from seeingbench.datasets.manifests import fetch_manifest_metadata, validate_manifest_files
 from seeingbench.io.images import load_grayscale_image
 from seeingbench.reconstruction.adapter import BaselineStackAdapter, copy_manual_reconstruction
 from seeingbench.simulation.atmosphere import SeeingModel
@@ -80,6 +83,25 @@ def _build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--output", required=True, type=Path)
     compare.add_argument("--format", choices=("markdown", "json"), default="markdown")
     compare.set_defaults(func=_compare)
+
+    datasets = subparsers.add_parser("datasets", help="dataset manifest utilities")
+    dataset_subparsers = datasets.add_subparsers(required=True)
+
+    validate_manifests = dataset_subparsers.add_parser(
+        "validate-manifest",
+        help="validate dataset manifest JSON files",
+    )
+    validate_manifests.add_argument("manifests", nargs="+", type=Path)
+    validate_manifests.add_argument("--output", type=Path)
+    validate_manifests.set_defaults(func=_datasets_validate_manifest)
+
+    fetch_metadata = dataset_subparsers.add_parser(
+        "fetch-metadata",
+        help="fetch only small metadata documents listed by a manifest",
+    )
+    fetch_metadata.add_argument("manifest", type=Path)
+    fetch_metadata.add_argument("--output-root", required=True, type=Path)
+    fetch_metadata.set_defaults(func=_datasets_fetch_metadata)
     return parser
 
 
@@ -196,6 +218,35 @@ def _compare(args: argparse.Namespace) -> int:
     else:
         write_comparison_markdown(args.inputs, args.output)
     return 0
+
+
+def _datasets_validate_manifest(args: argparse.Namespace) -> int:
+    reports = validate_manifest_files(_expand_path_patterns(args.manifests))
+    payload = json.dumps(reports, indent=2)
+    if args.output is None:
+        sys.stdout.write(f"{payload}\n")
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(payload, encoding="utf-8")
+    return 1 if any(not report["valid"] for report in reports) else 0
+
+
+def _datasets_fetch_metadata(args: argparse.Namespace) -> int:
+    written = fetch_manifest_metadata(args.manifest, args.output_root)
+    sys.stdout.write(f"{json.dumps([str(path) for path in written], indent=2)}\n")
+    return 0
+
+
+def _expand_path_patterns(paths: list[Path]) -> list[Path]:
+    expanded: list[Path] = []
+    for path in paths:
+        path_text = str(path)
+        if any(marker in path_text for marker in "*?["):
+            matches = [Path(match) for match in sorted(glob(path_text))]
+            expanded.extend(matches or [path])
+        else:
+            expanded.append(path)
+    return expanded
 
 
 def _append_diagnostics(report_path: Path, diagnostics: dict[str, Any]) -> None:

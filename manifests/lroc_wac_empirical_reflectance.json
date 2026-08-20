@@ -9,5 +9,14 @@
   "provenance": "LROC Team / Arizona State University empirically normalized WAC mosaic",
   "resolution": "304 pixels/degree for 643 nm approximately 100 meters/pixel; 64 pixels/degree for all seven bands",
   "coordinate_system": "Simple cylindrical regional tiles and polar stereographic 643 nm polar tiles",
-  "notes": "Candidate albedo/reflectance source where photometric normalization matters."
+  "notes": "Candidate albedo/reflectance source where photometric normalization matters.",
+  "metadata_documents": [
+    {
+      "name": "LROC WAC_EMP RDR product page",
+      "url": "https://data.lroc.im-ldi.com/lroc/view_rdr/WAC_EMP",
+      "local_path": "data/metadata/lroc/wac_emp_product_page.html",
+      "expected_max_bytes": 200000,
+      "purpose": "Product family, band availability, photometric normalization statement, and citation guidance."
+    }
+  ]
 }

@@ -9,5 +9,14 @@
   "provenance": "LOLA Science Team at NASA Goddard Space Flight Center via PDS Geosciences Node / LOLA Data Node",
   "resolution": "Product-dependent; use GDR/SLDEM products appropriate to approximately 100-120 meters/pixel internal target",
   "coordinate_system": "TBD per selected PDS4 product labels and SIS",
-  "notes": "Candidate topography source, especially for polar regions and shape support."
+  "notes": "Candidate topography source, especially for polar regions and shape support.",
+  "metadata_documents": [
+    {
+      "name": "PDS LOLA mission archive page",
+      "url": "https://pds-geosciences.wustl.edu/missions/lro/lola.htm",
+      "local_path": "data/metadata/lola/pds_lola_page.html",
+      "expected_max_bytes": 300000,
+      "purpose": "Official product-family list and archive links for GDR and SLDEM selection."
+    }
+  ]
 }
