@@ -68,6 +68,8 @@ def spatially_varying_gaussian_blur(
             "correlation_px": correlation_px,
             "min_sigma_px": base_sigma_px,
             "max_sigma_px": base_sigma_px,
+            "min_effective_sigma_px": base_sigma_px,
+            "max_effective_sigma_px": base_sigma_px,
         }
 
     low_sigma = max(0.0, base_sigma_px - variation_sigma_px)
@@ -75,15 +77,21 @@ def spatially_varying_gaussian_blur(
     low = gaussian_blur(image, low_sigma)
     high = gaussian_blur(image, high_sigma)
     weights = _smooth_weight_field(image.shape, correlation_px, rng)
-    sigma_map = low_sigma + weights * (high_sigma - low_sigma)
     blended = (1.0 - weights) * low + weights * high
+    effective_sigma_map = np.sqrt(
+        (1.0 - weights) * low_sigma * low_sigma + weights * high_sigma * high_sigma
+    )
     return blended.astype(np.float64), {
         "model": "smooth_two_kernel_blend",
         "base_sigma_px": base_sigma_px,
         "variation_sigma_px": variation_sigma_px,
         "correlation_px": correlation_px,
-        "min_sigma_px": float(np.min(sigma_map)),
-        "max_sigma_px": float(np.max(sigma_map)),
+        "low_kernel_sigma_px": low_sigma,
+        "high_kernel_sigma_px": high_sigma,
+        "min_blend_weight": float(np.min(weights)),
+        "max_blend_weight": float(np.max(weights)),
+        "min_effective_sigma_px": float(np.min(effective_sigma_map)),
+        "max_effective_sigma_px": float(np.max(effective_sigma_map)),
     }
 
 

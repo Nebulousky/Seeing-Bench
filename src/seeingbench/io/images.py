@@ -110,13 +110,13 @@ def read_grayscale_tiff(path: Path) -> FloatArray:
         tags[tag] = (field_type, count, value)
         cursor += 12
 
-    width = _require_scalar(tags, 256, _TIFF_LONG)
-    height = _require_scalar(tags, 257, _TIFF_LONG)
-    bits_per_sample = _require_scalar(tags, 258, _TIFF_SHORT)
-    compression = _require_scalar(tags, 259, _TIFF_SHORT)
-    photometric = _require_scalar(tags, 262, _TIFF_SHORT)
-    offset = _require_scalar(tags, 273, _TIFF_LONG)
-    byte_count = _require_scalar(tags, 279, _TIFF_LONG)
+    width = _require_scalar(tags, 256, _TIFF_LONG, endian)
+    height = _require_scalar(tags, 257, _TIFF_LONG, endian)
+    bits_per_sample = _require_scalar(tags, 258, _TIFF_SHORT, endian)
+    compression = _require_scalar(tags, 259, _TIFF_SHORT, endian)
+    photometric = _require_scalar(tags, 262, _TIFF_SHORT, endian)
+    offset = _require_scalar(tags, 273, _TIFF_LONG, endian)
+    byte_count = _require_scalar(tags, 279, _TIFF_LONG, endian)
 
     if compression != 1:
         raise ValueError("only uncompressed TIFF is supported")
@@ -145,11 +145,18 @@ def _entry(tag: int, field_type: int, count: int, value: int) -> bytes:
     return struct.pack("<HHII", tag, field_type, count, value)
 
 
-def _require_scalar(tags: dict[int, tuple[int, int, int]], tag: int, field_type: int) -> int:
+def _require_scalar(
+    tags: dict[int, tuple[int, int, int]],
+    tag: int,
+    field_type: int,
+    endian: str,
+) -> int:
     found = tags.get(tag)
     if found is None:
         raise ValueError(f"missing TIFF tag {tag}")
     actual_type, count, value = found
     if actual_type != field_type or count != 1:
         raise ValueError(f"unsupported TIFF tag {tag} layout")
-    return value & 0xFFFF if field_type == _TIFF_SHORT else value
+    if field_type == _TIFF_SHORT:
+        return value & 0xFFFF if endian == "<" else value >> 16
+    return value

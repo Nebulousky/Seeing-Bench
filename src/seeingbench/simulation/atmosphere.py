@@ -14,7 +14,7 @@ from seeingbench.simulation.config import SeeingSimulationConfig
 from seeingbench.simulation.noise import add_gaussian_noise, apply_sensor_range
 from seeingbench.simulation.psf import gaussian_blur, spatially_varying_gaussian_blur
 from seeingbench.simulation.sensor import block_average_downsample
-from seeingbench.simulation.telescope import telescope_metadata
+from seeingbench.simulation.telescope import diffraction_gaussian_sigma_px, telescope_metadata
 from seeingbench.simulation.warp import (
     apply_warp,
     generate_multiscale_warp_fields,
@@ -22,6 +22,7 @@ from seeingbench.simulation.warp import (
 )
 
 FloatArray = NDArray[np.float64]
+SENSOR_SAMPLING_ORDER = "telescope_psf -> atmosphere_warp -> seeing_blur -> sensor_block_average"
 
 
 @dataclass(frozen=True)
@@ -56,18 +57,29 @@ class SeeingModel:
             raise ValueError("input image must already be in the configured output range")
 
         latent = block_average_downsample(image, config.sensor_downsample_factor)
-        telescope_blurred = gaussian_blur(latent, config.telescope_psf_sigma_px)
+        telescope_blurred = gaussian_blur(image, config.telescope_psf_sigma_px)
         warp_fields, components = generate_multiscale_warp_fields(
-            shape=latent.shape,
+            shape=image.shape,
             frame_count=config.frame_count,
             scales=config.warp_scales,
             temporal_correlation=config.temporal_correlation,
             rng=rng,
         )
+        if config.global_motion_rms_px > 0.0:
+            global_motion = _generate_global_motion_fields(
+                shape=image.shape,
+                frame_count=config.frame_count,
+                rms_px=config.global_motion_rms_px,
+                temporal_correlation=config.temporal_correlation,
+                rng=rng,
+            )
+            components = {**components, "global": global_motion}
+            warp_fields = warp_fields + global_motion
 
         frames = np.empty((config.frame_count, *latent.shape), dtype=np.float64)
         low_saturated = 0
         high_saturated = 0
+        spatial_blur_frames: list[dict[str, Any]] = []
         for frame_index in range(config.frame_count):
             warped = apply_warp(telescope_blurred, warp_fields[frame_index])
             blurred, local_blur = spatially_varying_gaussian_blur(
@@ -77,27 +89,45 @@ class SeeingModel:
                 config.spatial_blur_correlation_px,
                 rng,
             )
-            noisy = add_gaussian_noise(blurred, config.gaussian_noise_sigma, rng)
+            spatial_blur_frames.append(local_blur)
+            sampled = block_average_downsample(blurred, config.sensor_downsample_factor)
+            noisy = add_gaussian_noise(sampled, config.gaussian_noise_sigma, rng)
             ranged = apply_sensor_range(noisy, config.output_min, config.output_max)
             frames[frame_index] = ranged.image
             low_saturated += ranged.low_saturated
             high_saturated += ranged.high_saturated
 
+        sensor_warp_fields = _downsample_displacement_fields(
+            warp_fields,
+            config.sensor_downsample_factor,
+        )
+        sensor_components = {
+            name: _downsample_displacement_fields(component, config.sensor_downsample_factor)
+            for name, component in components.items()
+        }
+
         return SimulationResult(
             frames=frames,
             latent_truth=latent,
-            warp_fields=warp_fields,
-            warp_components=components,
+            warp_fields=sensor_warp_fields,
+            warp_components=sensor_components,
             psf_information={
                 "telescope_psf": {
                     "model": "gaussian",
                     "sigma_px": config.telescope_psf_sigma_px,
+                    "diffraction_gaussian_sigma_px": diffraction_gaussian_sigma_px(
+                        config.telescope
+                    ),
+                    "sigma_to_diffraction_gaussian_ratio": (
+                        config.telescope_psf_sigma_px
+                        / diffraction_gaussian_sigma_px(config.telescope)
+                    ),
                 },
                 "seeing_blur": {
                     "model": "gaussian",
                     "sigma_px": config.seeing_blur_sigma_px,
                 },
-                "spatial_blur": local_blur if config.frame_count > 0 else None,
+                "spatial_blur": _summarise_spatial_blur(spatial_blur_frames),
                 "telescope": telescope_metadata(config.telescope),
             },
             noise_information={
@@ -118,9 +148,69 @@ class SeeingModel:
                     "downsample_factor": config.sensor_downsample_factor,
                     "truth_shape_before_sensor": list(image.shape),
                     "truth_shape_after_sensor": list(latent.shape),
+                    "order": SENSOR_SAMPLING_ORDER,
                 },
                 "validation_boundary": (
                     "truth is retained by SeeingBench and not provided to reconstruction"
                 ),
             },
         )
+
+
+def _generate_global_motion_fields(
+    shape: tuple[int, int],
+    frame_count: int,
+    rms_px: float,
+    temporal_correlation: float,
+    rng: np.random.Generator,
+) -> FloatArray:
+    h, w = shape
+    fields = np.empty((frame_count, h, w, 2), dtype=np.float64)
+    state = rng.normal(scale=rms_px, size=2).astype(np.float64)
+    innovation_weight = float(np.sqrt(1.0 - temporal_correlation * temporal_correlation))
+    for index in range(frame_count):
+        if index > 0:
+            innovation = rng.normal(scale=rms_px, size=2).astype(np.float64)
+            state = temporal_correlation * state + innovation_weight * innovation
+        fields[index, ..., 0] = state[0]
+        fields[index, ..., 1] = state[1]
+    return fields
+
+
+def _downsample_displacement_fields(fields: FloatArray, factor: int) -> FloatArray:
+    if factor == 1:
+        return fields.copy()
+    frame_count = fields.shape[0]
+    downsampled = np.empty(
+        (frame_count, fields.shape[1] // factor, fields.shape[2] // factor, 2),
+        dtype=np.float64,
+    )
+    for index in range(frame_count):
+        downsampled[index, ..., 0] = (
+            block_average_downsample(fields[index, ..., 0], factor) / factor
+        )
+        downsampled[index, ..., 1] = (
+            block_average_downsample(fields[index, ..., 1], factor) / factor
+        )
+    return downsampled
+
+
+def _summarise_spatial_blur(frames: list[dict[str, Any]]) -> dict[str, Any]:
+    if not frames:
+        return {"model": "none", "frame_count": 0}
+    return {
+        "model": "per_frame_summary",
+        "frame_count": len(frames),
+        "frame_model": frames[0].get("model", "unknown"),
+        "base_sigma_px": frames[0].get("base_sigma_px"),
+        "variation_sigma_px": frames[0].get("variation_sigma_px"),
+        "correlation_px": frames[0].get("correlation_px"),
+        "min_effective_sigma_px": min(
+            float(frame.get("min_effective_sigma_px", frame.get("min_sigma_px", 0.0)))
+            for frame in frames
+        ),
+        "max_effective_sigma_px": max(
+            float(frame.get("max_effective_sigma_px", frame.get("max_sigma_px", 0.0)))
+            for frame in frames
+        ),
+    }

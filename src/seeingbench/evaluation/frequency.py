@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -30,6 +32,7 @@ def radial_frequency_correlation(
     ref_fft = np.fft.fftshift(np.fft.fft2(reference))
     rec_fft = np.fft.fftshift(np.fft.fft2(reconstruction))
     radius = _normalised_radius(reference.shape)
+    independent = _independent_frequency_mask(reference.shape)
     edges = np.linspace(0.0, 1.0, bins + 1)
     rows: list[dict[str, float | int]] = []
 
@@ -37,8 +40,9 @@ def radial_frequency_correlation(
         low = edges[index]
         high = edges[index + 1]
         mask = (radius >= low) & (radius < high if index < bins - 1 else radius <= high)
-        count = int(np.count_nonzero(mask))
-        if count < 1:
+        fourier_sample_count = int(np.count_nonzero(mask))
+        independent_sample_count = int(np.count_nonzero(mask & independent))
+        if fourier_sample_count < 1:
             correlation = float("nan")
             phase_correlation = float("nan")
             amplitude_recovery = float("nan")
@@ -52,7 +56,8 @@ def radial_frequency_correlation(
                 "frequency_min_fraction": float(low),
                 "frequency_max_fraction": float(high),
                 "frequency_mid_fraction": float((low + high) / 2.0),
-                "sample_count": count,
+                "sample_count": independent_sample_count,
+                "fourier_sample_count": fourier_sample_count,
                 "correlation": correlation,
                 "phase_correlation": phase_correlation,
                 "amplitude_recovery": amplitude_recovery,
@@ -94,6 +99,14 @@ def _normalised_radius(shape: tuple[int, int]) -> FloatArray:
     if h <= 1 and w <= 1:
         raise ValueError("cannot compute frequency radius for a degenerate image")
     return radius / nyquist
+
+
+def _independent_frequency_mask(shape: tuple[int, int]) -> NDArray[np.bool_]:
+    h, w = shape
+    fy = np.fft.fftshift(np.fft.fftfreq(h))
+    fx = np.fft.fftshift(np.fft.fftfreq(w))
+    grid_x, grid_y = np.meshgrid(fx, fy)
+    return cast(NDArray[np.bool_], (grid_y > 0.0) | ((grid_y == 0.0) & (grid_x >= 0.0)))
 
 
 def _fourier_ring_correlation(reference: np.ndarray, reconstruction: np.ndarray) -> float:

@@ -29,7 +29,12 @@ def edge_residual_map(reference: FloatArray, reconstruction: FloatArray) -> Floa
 
 
 def _gradient_magnitude(image: FloatArray) -> FloatArray:
-    gy, gx = np.gradient(image)
+    gx = np.empty_like(image)
+    gy = np.empty_like(image)
+    gx[:, :-1] = image[:, 1:] - image[:, :-1]
+    gx[:, -1] = image[:, -1] - image[:, -2] if image.shape[1] > 1 else 0.0
+    gy[:-1, :] = image[1:, :] - image[:-1, :]
+    gy[-1, :] = image[-1, :] - image[-2, :] if image.shape[0] > 1 else 0.0
     return cast(FloatArray, np.hypot(gx, gy))
 
 

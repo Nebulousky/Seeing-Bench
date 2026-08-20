@@ -21,10 +21,11 @@ parameters do not silently produce a different benchmark.
 | `temporal_correlation` | number | `0.85` | unitless | Frame-to-frame correlation for each warp scale; valid range is `[0, 1)`. |
 | `warp_scales` | array | large/medium/fine | pixels | Smooth displacement components retained separately in truth. |
 | `telescope` | object | see below | mixed | Telescope/camera geometry for physical metadata. |
-| `telescope_psf_sigma_px` | number | `0.8` | pixels | Gaussian approximation of the atmosphere-free telescope PSF. |
-| `seeing_blur_sigma_px` | number | `0.4` | pixels | Base Gaussian seeing blur applied after warping. |
+| `telescope_psf_sigma_px` | number | `1.656` | pixels | Gaussian approximation of the atmosphere-free telescope PSF for the default 200 mm f/20, 550 nm, 2.9 um setup. |
+| `seeing_blur_sigma_px` | number | `2.0` | pixels | Base Gaussian seeing blur applied after warping. |
 | `spatial_blur_variation_sigma_px` | number | `0.0` | pixels | Local blur variation around `seeing_blur_sigma_px`. |
 | `spatial_blur_correlation_px` | number | `32.0` | pixels | Correlation scale for the smooth local blur map. |
+| `global_motion_rms_px` | number | `0.75` | source pixels | Per-axis RMS whole-frame atmospheric displacement. |
 | `sensor_downsample_factor` | integer | `1` | pixels | Integer block-average factor from source grid to sensor grid. |
 | `gaussian_noise_sigma` | number | `0.01` | image units | Standard deviation of additive zero-mean Gaussian noise. |
 | `output_min` | number | `0.0` | image units | Lower sensor saturation limit. |
@@ -50,6 +51,10 @@ The default components are:
 ]
 ```
 
+Per-scale amplitudes are RMS values for each retained component. The combined local
+displacement RMS is the quadrature sum of the components, plus the separate global-motion
+component when `global_motion_rms_px` is non-zero.
+
 ## Telescope Config
 
 The telescope object records physical metadata and derived limits. It does not yet implement
@@ -66,8 +71,11 @@ a full Airy PSF; `telescope_psf_sigma_px` controls the current image blur model.
 | `sensor_height_px` | integer or null | `null` | pixels | Sensor height. If omitted, the CLI fills it from the generated frame height. |
 
 Derived metadata includes effective focal ratio, plate scale, Rayleigh diffraction limit,
-approximate lunar metres per pixel at mean lunar distance, and diffraction frequency as a
-fraction of sampled-image Nyquist.
+Airy-core FWHM, the corresponding Gaussian sigma in pixels, central-obstruction area
+fraction, clear aperture area, approximate lunar metres per pixel at mean lunar distance,
+and diffraction cutoff frequency as a fraction of sampled-image axial Nyquist. Synthetic
+case metadata also records the configured telescope PSF sigma relative to this
+geometry-derived diffraction sigma.
 
 ## CLI Overrides
 

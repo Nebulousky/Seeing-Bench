@@ -75,6 +75,7 @@ def write_diagnostics(
                 "frequency_max_fraction",
                 "frequency_mid_fraction",
                 "sample_count",
+                "fourier_sample_count",
                 "correlation",
                 "phase_correlation",
                 "amplitude_recovery",

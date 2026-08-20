@@ -45,8 +45,8 @@ def compare_metric_files(paths: list[Path]) -> dict[str, Any]:
     ranked = sorted(rows, key=lambda row: row.score, reverse=True)
     return {
         "ranking_basis": (
-            "diagnostic score = mean(global SSIM, gradient correlation, spectral-fidelity "
-            "limit) - false detail fraction"
+            "conservative diagnostic score = min(global SSIM, gradient correlation, "
+            "spectral-fidelity limit) * (1 - false detail fraction)"
         ),
         "rows": [row.to_dict() for row in ranked],
     }
@@ -107,7 +107,7 @@ def _row_from_report(metrics_path: Path) -> ComparisonRow:
     gradient = float(structure["gradient_correlation"])
     frequency_limit = float(frequency["correlation_0_5_limit_fraction"])
     false_fraction = float(false_detail["unsupported_energy_fraction"])
-    score = ((ssim + gradient + frequency_limit) / 3.0) - false_fraction
+    score = min(ssim, gradient, frequency_limit) * (1.0 - false_fraction)
     return ComparisonRow(
         algorithm=str(report["algorithm"]),
         metrics_path=str(metrics_path),

@@ -38,8 +38,9 @@ class SyntheticSweepConfig:
     temporal_correlation: float = 0.85
     warp_strengths: tuple[float, ...] = (0.0, 0.5, 1.0, 2.0)
     noise_sigmas: tuple[float, ...] = (0.0, 0.01, 0.03, 0.05)
-    telescope_psf_sigma_px: float = 0.8
-    seeing_blur_sigma_px: float = 0.4
+    telescope_psf_sigma_px: float = 1.656
+    seeing_blur_sigma_px: float = 2.0
+    global_motion_rms_px: float = 0.75
     frequency_bins: int = 12
     base_warp_scales: tuple[WarpScaleConfig, ...] = (
         WarpScaleConfig("large", amplitude_px=1.5, correlation_px=64.0),
@@ -62,6 +63,7 @@ class SyntheticSweepConfig:
             "noise_sigmas",
             "telescope_psf_sigma_px",
             "seeing_blur_sigma_px",
+            "global_motion_rms_px",
             "frequency_bins",
             "base_warp_scales",
         }
@@ -83,6 +85,7 @@ class SyntheticSweepConfig:
                 data.get("telescope_psf_sigma_px", cls.telescope_psf_sigma_px)
             ),
             seeing_blur_sigma_px=float(data.get("seeing_blur_sigma_px", cls.seeing_blur_sigma_px)),
+            global_motion_rms_px=float(data.get("global_motion_rms_px", cls.global_motion_rms_px)),
             frequency_bins=int(data.get("frequency_bins", cls.frequency_bins)),
             base_warp_scales=_warp_scales(data.get("base_warp_scales", cls.base_warp_scales)),
         )
@@ -110,6 +113,8 @@ class SyntheticSweepConfig:
             raise ValueError("telescope_psf_sigma_px must be non-negative")
         if self.seeing_blur_sigma_px < 0:
             raise ValueError("seeing_blur_sigma_px must be non-negative")
+        if self.global_motion_rms_px < 0:
+            raise ValueError("global_motion_rms_px must be non-negative")
         if self.frequency_bins <= 0:
             raise ValueError("frequency_bins must be positive")
         if not self.base_warp_scales:
@@ -163,8 +168,8 @@ def run_synthetic_sweep(config: SyntheticSweepConfig, output_dir: Path) -> dict[
         "name": config.name,
         "config": _config_to_dict(config),
         "ranking_basis": (
-            "diagnostic score = mean(global SSIM, gradient correlation, spectral-fidelity "
-            "limit) - false detail fraction"
+            "conservative diagnostic score = min(global SSIM, gradient correlation, "
+            "spectral-fidelity limit) * (1 - false detail fraction)"
         ),
         "rows": sorted(rows, key=lambda row: row["score"], reverse=True),
     }
@@ -284,6 +289,7 @@ def _simulation_config(
         ),
         telescope_psf_sigma_px=config.telescope_psf_sigma_px,
         seeing_blur_sigma_px=config.seeing_blur_sigma_px,
+        global_motion_rms_px=config.global_motion_rms_px,
         gaussian_noise_sigma=noise_sigma,
     )
 
@@ -318,7 +324,7 @@ def _summary_row(
         "warp_mean_px": None
         if report.warp_recovery is None
         else float(report.warp_recovery["mean_px"]),
-        "score": ((ssim + gradient + frequency_limit) / 3.0) - false_fraction,
+        "score": min(ssim, gradient, frequency_limit) * (1.0 - false_fraction),
     }
 
 
@@ -336,6 +342,7 @@ def _config_to_dict(config: SyntheticSweepConfig) -> dict[str, Any]:
         "noise_sigmas": list(config.noise_sigmas),
         "telescope_psf_sigma_px": config.telescope_psf_sigma_px,
         "seeing_blur_sigma_px": config.seeing_blur_sigma_px,
+        "global_motion_rms_px": config.global_motion_rms_px,
         "frequency_bins": config.frequency_bins,
         "base_warp_scales": [
             {

@@ -228,6 +228,8 @@ class OracleAlignedStackAdapter:
                     "frame_count": len(frames),
                     "method": "mean stack after applying negative retained synthetic warp fields",
                     "synthetic_oracle": True,
+                    "prior_informed": True,
+                    "experiment_class": "prior-informed synthetic oracle",
                     "validation_boundary": (
                         "uses SeeingBench-retained truth and must not be treated as a "
                         "deployable reconstruction algorithm"

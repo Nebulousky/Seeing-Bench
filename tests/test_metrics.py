@@ -66,6 +66,14 @@ def test_frequency_recovery_declines_with_strong_blur() -> None:
     assert limits[0] > limits[1] > limits[2] >= limits[3]
 
 
+def test_frequency_sample_count_tracks_independent_samples() -> None:
+    image = _structured_image()
+
+    rows = radial_frequency_correlation(image, image, bins=4)
+
+    assert any(row["fourier_sample_count"] > row["sample_count"] for row in rows)
+
+
 def test_warp_error_metrics_known_offset() -> None:
     truth = np.zeros((2, 4, 4, 2), dtype=np.float64)
     estimate = truth.copy()
@@ -98,6 +106,13 @@ def test_false_detail_penalises_high_frequency_sign_flip() -> None:
 
     assert metrics["unsupported_energy_fraction"] > 0.6
     assert metrics["signed_residual_energy"] > 0.0
+
+
+def test_gradient_correlation_detects_nyquist_checkerboard_difference() -> None:
+    image = np.zeros((8, 8), dtype=np.float64)
+    checkerboard = np.where(np.indices(image.shape).sum(axis=0) % 2 == 0, 1.0, 0.0)
+
+    assert gradient_correlation(image, checkerboard.astype(np.float64)) < 1.0
 
 
 def _structured_image() -> np.ndarray:

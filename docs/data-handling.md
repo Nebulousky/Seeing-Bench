@@ -26,8 +26,9 @@ integer block averaging and refuses non-divisible image shapes rather than silen
 Transforms that change scale, range, units, or interpretation are named at the API boundary:
 warps use pixel displacements, telescope fields use units in their names, sensor-grid
 downsampling records pre/post truth shapes, and diagnostic visualizations record their
-source min/max when scaled to `[0, 1]`. Sensor saturation is an explicit simulation step and
-records saturated pixel counts.
+source min/max when scaled to `[0, 1]`. Synthetic sensor downsampling is applied after
+telescope blur, atmospheric warp, and seeing blur. Sensor saturation is an explicit
+simulation step and records saturated pixel counts.
 
 ## Conventions
 
@@ -36,7 +37,8 @@ Images are indexed as `[y, x]`. Dense warp fields have shape `(height, width, 2)
 `v` is vertical pixels. Applying a displacement samples the source at `(x - u, y - v)`.
 Frequency metrics report radial frequency as a fraction of sampled-image axial Nyquist.
 Diagonal Fourier samples above axial Nyquist are not part of the reported `0..1` radial
-frequency range.
+frequency range. Frequency-bin `sample_count` values count independent real-image Fourier
+samples rather than Hermitian mirror pairs.
 
 ## Boundaries
 

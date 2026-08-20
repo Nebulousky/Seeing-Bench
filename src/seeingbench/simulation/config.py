@@ -79,10 +79,11 @@ class SeeingSimulationConfig:
         )
     )
     telescope: TelescopeConfig = field(default_factory=TelescopeConfig)
-    telescope_psf_sigma_px: float = 0.8
-    seeing_blur_sigma_px: float = 0.4
+    telescope_psf_sigma_px: float = 1.656
+    seeing_blur_sigma_px: float = 2.0
     spatial_blur_variation_sigma_px: float = 0.0
     spatial_blur_correlation_px: float = 32.0
+    global_motion_rms_px: float = 0.75
     sensor_downsample_factor: int = 1
     gaussian_noise_sigma: float = 0.01
     output_min: float = 0.0
@@ -102,6 +103,7 @@ class SeeingSimulationConfig:
             "seeing_blur_sigma_px",
             "spatial_blur_variation_sigma_px",
             "spatial_blur_correlation_px",
+            "global_motion_rms_px",
             "sensor_downsample_factor",
             "gaussian_noise_sigma",
             "output_min",
@@ -142,6 +144,7 @@ class SeeingSimulationConfig:
             spatial_blur_correlation_px=float(
                 data.get("spatial_blur_correlation_px", cls.spatial_blur_correlation_px)
             ),
+            global_motion_rms_px=float(data.get("global_motion_rms_px", cls.global_motion_rms_px)),
             sensor_downsample_factor=int(
                 data.get("sensor_downsample_factor", cls.sensor_downsample_factor)
             ),
@@ -165,6 +168,8 @@ class SeeingSimulationConfig:
             raise ValueError("spatial_blur_variation_sigma_px must be non-negative")
         if self.spatial_blur_correlation_px <= 0:
             raise ValueError("spatial_blur_correlation_px must be positive")
+        if self.global_motion_rms_px < 0:
+            raise ValueError("global_motion_rms_px must be non-negative")
         if self.sensor_downsample_factor <= 0:
             raise ValueError("sensor_downsample_factor must be positive")
         if self.gaussian_noise_sigma < 0:

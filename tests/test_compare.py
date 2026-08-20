@@ -26,6 +26,25 @@ def test_comparison_markdown_contains_ranked_table(tmp_path: Path) -> None:
     assert "| 1 | `a` |" in markdown
 
 
+def test_compare_score_uses_conservative_bottleneck(tmp_path: Path) -> None:
+    candidate = _write_report(
+        tmp_path / "candidate.json",
+        "candidate",
+        ssim=0.9,
+        gradient=0.8,
+        frequency_limit=0.4,
+        false_detail=0.25,
+    )
+
+    comparison = compare_metric_files(
+        [candidate, _write_report(tmp_path / "other.json", "other", 0.1, 0.1, 0.1, 0.0)]
+    )
+
+    row = next(row for row in comparison["rows"] if row["algorithm"] == "candidate")
+    assert row["score"] == 0.4 * 0.75
+    assert "min(global SSIM" in comparison["ranking_basis"]
+
+
 def _write_report(
     path: Path,
     algorithm: str,

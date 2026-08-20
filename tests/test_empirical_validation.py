@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -33,6 +34,7 @@ def test_mean_stack_empirically_beats_single_noisy_frame(tmp_path: Path) -> None
         warp_scales=(WarpScaleConfig("none", amplitude_px=0.0, correlation_px=8.0),),
         telescope_psf_sigma_px=0.0,
         seeing_blur_sigma_px=0.0,
+        global_motion_rms_px=0.0,
         gaussian_noise_sigma=0.05,
     )
     simulation = SeeingModel().generate(
@@ -117,6 +119,7 @@ def test_oracle_aligned_stack_empirically_beats_mean_stack_under_warp(
         ),
         telescope_psf_sigma_px=0.0,
         seeing_blur_sigma_px=0.0,
+        global_motion_rms_px=0.0,
         gaussian_noise_sigma=0.01,
     )
     simulation = SeeingModel().generate(
@@ -228,6 +231,7 @@ def test_translation_stack_recovers_controlled_global_shifts(tmp_path: Path) -> 
     oracle_adapter.execute(case_dir, oracle_dir)
     oracle_adapter.collect_results(case_dir, oracle_dir)
     oracle = evaluate_reconstruction(case_dir, oracle_dir, algorithm="oracle_aligned_stack")
+    oracle_metadata = json.loads((oracle_dir / "metadata.json").read_text(encoding="utf-8"))
 
     assert oracle.warp_recovery == {
         "mean_px": 0.0,
@@ -235,6 +239,8 @@ def test_translation_stack_recovers_controlled_global_shifts(tmp_path: Path) -> 
         "p95_px": 0.0,
         "max_px": 0.0,
     }
+    assert oracle_metadata["prior_informed"]
+    assert oracle_metadata["experiment_class"] == "prior-informed synthetic oracle"
 
 
 def test_frequency_recovery_ranks_blur_levels() -> None:
