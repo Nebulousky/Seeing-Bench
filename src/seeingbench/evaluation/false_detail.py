@@ -17,11 +17,10 @@ def false_detail_score(
     cutoff_fraction: float = 0.6,
     support_multiplier: float = 1.5,
 ) -> dict[str, float]:
-    """Estimate high-frequency reconstruction energy unsupported by the reference.
+    """Estimate signed high-frequency reconstruction residual unsupported by the reference.
 
-    The score is the fraction of high-frequency reconstruction energy above
-    ``support_multiplier * abs(reference_highpass)``. It is a first-pass diagnostic, not a
-    final scientific claim.
+    High-frequency reconstruction energy is unsupported when it has the wrong sign relative
+    to the reference or exceeds the configured reference amplitude envelope.
     """
 
     _validate_pair(reference, reconstruction)
@@ -33,7 +32,10 @@ def false_detail_score(
     ref_high = _high_pass(reference, cutoff_fraction)
     rec_high = _high_pass(reconstruction, cutoff_fraction)
     rec_energy = rec_high * rec_high
-    unsupported = np.abs(rec_high) > support_multiplier * np.abs(ref_high)
+    signed_residual = rec_high - ref_high
+    unsupported = (rec_high * ref_high < 0.0) | (
+        np.abs(rec_high) > support_multiplier * np.abs(ref_high)
+    )
     total_energy = float(np.sum(rec_energy))
     unsupported_energy = float(np.sum(rec_energy[unsupported]))
     fraction = unsupported_energy / total_energy if total_energy > 0 else 0.0
@@ -41,6 +43,7 @@ def false_detail_score(
         "cutoff_fraction": cutoff_fraction,
         "support_multiplier": support_multiplier,
         "unsupported_energy": unsupported_energy,
+        "signed_residual_energy": float(np.sum(signed_residual * signed_residual)),
         "total_high_frequency_energy": total_energy,
         "unsupported_energy_fraction": fraction,
     }
@@ -57,8 +60,9 @@ def false_detail_map(
     _validate_pair(reference, reconstruction)
     ref_high = _high_pass(reference, cutoff_fraction)
     rec_high = _high_pass(reconstruction, cutoff_fraction)
+    wrong_sign = rec_high * ref_high < 0.0
     excess = np.abs(rec_high) - support_multiplier * np.abs(ref_high)
-    return np.maximum(excess, 0.0)
+    return np.where(wrong_sign, np.abs(rec_high), np.maximum(excess, 0.0))
 
 
 def _high_pass(image: FloatArray, cutoff_fraction: float) -> FloatArray:

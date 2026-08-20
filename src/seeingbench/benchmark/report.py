@@ -49,19 +49,20 @@ def render_markdown_report(report: dict[str, Any]) -> str:
         "## Frequency Recovery",
         "",
         (
-            "- 0.5-correlation limit: "
-            f"{_format_float(frequency.get('correlation_0_5_limit_fraction'))} Nyquist"
+            "- 0.5 spectral-fidelity limit: "
+            f"{_format_float(frequency.get('correlation_0_5_limit_fraction'))} axial Nyquist"
         ),
         (
             "- Diffraction frequency: "
-            f"{_format_float(frequency.get('diffraction_frequency_fraction_of_nyquist'))} Nyquist"
+            f"{_format_float(frequency.get('diffraction_frequency_fraction_of_nyquist'))} "
+            "axial Nyquist"
         ),
         (
             "- Limit relative to diffraction: "
             f"{_format_float(frequency.get('correlation_0_5_limit_relative_to_diffraction'))}"
         ),
         (
-            "- Mean correlation beyond diffraction: "
+            "- Mean spectral fidelity beyond diffraction: "
             f"{_format_float(frequency.get('mean_correlation_beyond_diffraction'))}"
         ),
         "",
@@ -71,7 +72,7 @@ def render_markdown_report(report: dict[str, Any]) -> str:
             "- Unsupported high-frequency energy fraction: "
             f"{_format_float(false_detail.get('unsupported_energy_fraction'))}"
         ),
-        f"- Cutoff fraction: {_format_float(false_detail.get('cutoff_fraction'))} Nyquist",
+        f"- Cutoff fraction: {_format_float(false_detail.get('cutoff_fraction'))} axial Nyquist",
         "",
         "## Warp Recovery",
         "",

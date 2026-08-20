@@ -34,7 +34,9 @@ records saturated pixel counts.
 Images are indexed as `[y, x]`. Dense warp fields have shape `(height, width, 2)` or
 `(frames, height, width, 2)` with vector order `[u, v]`, where `u` is horizontal pixels and
 `v` is vertical pixels. Applying a displacement samples the source at `(x - u, y - v)`.
-Frequency metrics report radial frequency as a fraction of sampled-image Nyquist.
+Frequency metrics report radial frequency as a fraction of sampled-image axial Nyquist.
+Diagonal Fourier samples above axial Nyquist are not part of the reported `0..1` radial
+frequency range.
 
 ## Boundaries
 

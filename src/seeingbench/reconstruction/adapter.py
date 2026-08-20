@@ -138,7 +138,9 @@ class TranslationAlignedStackAdapter:
 
     def prepare(self, benchmark_case: Path, result_dir: Path) -> None:
         result_dir.mkdir(parents=True, exist_ok=True)
-        (result_dir / "warp_fields").mkdir(parents=True, exist_ok=True)
+        warp_dir = result_dir / "warp_fields"
+        if warp_dir.exists():
+            shutil.rmtree(warp_dir)
 
     def execute(self, benchmark_case: Path, result_dir: Path) -> None:
         frames = [
@@ -153,24 +155,17 @@ class TranslationAlignedStackAdapter:
 
         reference = frames[0]
         shifts: list[dict[str, float | int]] = []
-        estimated_fields: list[np.ndarray] = []
         aligned_frames: list[np.ndarray] = []
         for index, frame in enumerate(frames, start=1):
             shift_x, shift_y = estimate_integer_translation(reference, frame)
             shifts.append({"frame": index, "u_px": shift_x, "v_px": shift_y})
             estimated_field = constant_displacement(shape, shift_x, shift_y)
-            estimated_fields.append(estimated_field)
             aligned_frames.append(apply_warp(frame, -estimated_field))
 
         reconstruction = np.clip(np.mean(np.stack(aligned_frames), axis=0), 0.0, 1.0).astype(
             np.float64
         )
         write_grayscale_tiff(result_dir / "reconstruction.tif", reconstruction)
-
-        warp_dir = result_dir / "warp_fields"
-        warp_dir.mkdir(parents=True, exist_ok=True)
-        for index, field in enumerate(estimated_fields, start=1):
-            np.save(warp_dir / f"warp_{index:06d}.npy", field)
 
         (result_dir / "estimated_global_translations.json").write_text(
             json.dumps(shifts, indent=2),

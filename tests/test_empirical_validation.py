@@ -195,6 +195,9 @@ def test_translation_stack_recovers_controlled_global_shifts(tmp_path: Path) -> 
     mean_adapter.collect_results(case_dir, mean_dir)
 
     translation_dir = tmp_path / "translation"
+    stale_warp_dir = translation_dir / "warp_fields"
+    stale_warp_dir.mkdir(parents=True)
+    np.save(stale_warp_dir / "warp_000001.npy", warp_fields[0])
     translation_adapter = TranslationAlignedStackAdapter()
     translation_adapter.prepare(case_dir, translation_dir)
     translation_adapter.execute(case_dir, translation_dir)
@@ -217,7 +220,16 @@ def test_translation_stack_recovers_controlled_global_shifts(tmp_path: Path) -> 
         translation.false_detail["unsupported_energy_fraction"]
         < mean.false_detail["unsupported_energy_fraction"]
     )
-    assert translation.warp_recovery == {
+    assert translation.warp_recovery is None
+
+    oracle_dir = tmp_path / "oracle"
+    oracle_adapter = OracleAlignedStackAdapter()
+    oracle_adapter.prepare(case_dir, oracle_dir)
+    oracle_adapter.execute(case_dir, oracle_dir)
+    oracle_adapter.collect_results(case_dir, oracle_dir)
+    oracle = evaluate_reconstruction(case_dir, oracle_dir, algorithm="oracle_aligned_stack")
+
+    assert oracle.warp_recovery == {
         "mean_px": 0.0,
         "median_px": 0.0,
         "p95_px": 0.0,

@@ -76,6 +76,8 @@ def write_diagnostics(
                 "frequency_mid_fraction",
                 "sample_count",
                 "correlation",
+                "phase_correlation",
+                "amplitude_recovery",
             ],
         )
         writer.writeheader()

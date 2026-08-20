@@ -45,8 +45,8 @@ def compare_metric_files(paths: list[Path]) -> dict[str, Any]:
     ranked = sorted(rows, key=lambda row: row.score, reverse=True)
     return {
         "ranking_basis": (
-            "score = mean(global SSIM, gradient correlation, frequency recovery limit) "
-            "- false detail fraction"
+            "diagnostic score = mean(global SSIM, gradient correlation, spectral-fidelity "
+            "limit) - false detail fraction"
         ),
         "rows": [row.to_dict() for row in ranked],
     }
@@ -75,7 +75,7 @@ def render_comparison_markdown(comparison: dict[str, Any]) -> str:
         "",
         f"Ranking basis: {comparison['ranking_basis']}",
         "",
-        "| Rank | Algorithm | Score | MSE | SSIM | Gradient Corr | Freq Limit | False Detail |",
+        "| Rank | Algorithm | Score | MSE | SSIM | Gradient Corr | Spectral Limit | False Detail |",
         "|---:|---|---:|---:|---:|---:|---:|---:|",
     ]
     for rank, row in enumerate(comparison["rows"], start=1):

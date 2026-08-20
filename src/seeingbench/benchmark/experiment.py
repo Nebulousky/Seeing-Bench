@@ -38,6 +38,8 @@ class SyntheticSweepConfig:
     temporal_correlation: float = 0.85
     warp_strengths: tuple[float, ...] = (0.0, 0.5, 1.0, 2.0)
     noise_sigmas: tuple[float, ...] = (0.0, 0.01, 0.03, 0.05)
+    telescope_psf_sigma_px: float = 0.8
+    seeing_blur_sigma_px: float = 0.4
     frequency_bins: int = 12
     base_warp_scales: tuple[WarpScaleConfig, ...] = (
         WarpScaleConfig("large", amplitude_px=1.5, correlation_px=64.0),
@@ -58,6 +60,8 @@ class SyntheticSweepConfig:
             "temporal_correlation",
             "warp_strengths",
             "noise_sigmas",
+            "telescope_psf_sigma_px",
+            "seeing_blur_sigma_px",
             "frequency_bins",
             "base_warp_scales",
         }
@@ -75,6 +79,10 @@ class SyntheticSweepConfig:
             temporal_correlation=float(data.get("temporal_correlation", cls.temporal_correlation)),
             warp_strengths=_float_tuple(data.get("warp_strengths", cls.warp_strengths)),
             noise_sigmas=_float_tuple(data.get("noise_sigmas", cls.noise_sigmas)),
+            telescope_psf_sigma_px=float(
+                data.get("telescope_psf_sigma_px", cls.telescope_psf_sigma_px)
+            ),
+            seeing_blur_sigma_px=float(data.get("seeing_blur_sigma_px", cls.seeing_blur_sigma_px)),
             frequency_bins=int(data.get("frequency_bins", cls.frequency_bins)),
             base_warp_scales=_warp_scales(data.get("base_warp_scales", cls.base_warp_scales)),
         )
@@ -98,6 +106,10 @@ class SyntheticSweepConfig:
             raise ValueError("noise_sigmas must not be empty")
         if any(sigma < 0 for sigma in self.noise_sigmas):
             raise ValueError("noise_sigmas must be non-negative")
+        if self.telescope_psf_sigma_px < 0:
+            raise ValueError("telescope_psf_sigma_px must be non-negative")
+        if self.seeing_blur_sigma_px < 0:
+            raise ValueError("seeing_blur_sigma_px must be non-negative")
         if self.frequency_bins <= 0:
             raise ValueError("frequency_bins must be positive")
         if not self.base_warp_scales:
@@ -126,12 +138,12 @@ def run_synthetic_sweep(config: SyntheticSweepConfig, output_dir: Path) -> dict[
     )
 
     rows: list[dict[str, Any]] = []
-    for case_index, warp_strength in enumerate(config.warp_strengths):
+    for warp_strength in config.warp_strengths:
         for noise_sigma in config.noise_sigmas:
             scenario = _scenario_name(warp_strength, noise_sigma)
             case_dir = output_dir / "cases" / scenario
             _recreate_dir(case_dir)
-            simulation_config = _simulation_config(config, warp_strength, noise_sigma, case_index)
+            simulation_config = _simulation_config(config, warp_strength, noise_sigma)
             simulation = SeeingModel().generate(
                 truth,
                 simulation_config,
@@ -151,8 +163,8 @@ def run_synthetic_sweep(config: SyntheticSweepConfig, output_dir: Path) -> dict[
         "name": config.name,
         "config": _config_to_dict(config),
         "ranking_basis": (
-            "score = mean(global SSIM, gradient correlation, frequency recovery limit) "
-            "- false detail fraction"
+            "diagnostic score = mean(global SSIM, gradient correlation, spectral-fidelity "
+            "limit) - false detail fraction"
         ),
         "rows": sorted(rows, key=lambda row: row["score"], reverse=True),
     }
@@ -173,7 +185,7 @@ def render_sweep_markdown(comparison: dict[str, Any]) -> str:
         f"Ranking basis: {comparison['ranking_basis']}",
         "",
         "| Rank | Scenario | Algorithm | Score | MSE | SSIM | Gradient Corr | "
-        "Freq Limit | False Detail |",
+        "Spectral Limit | False Detail |",
         "|---:|---|---|---:|---:|---:|---:|---:|---:|",
     ]
     for rank, row in enumerate(comparison["rows"], start=1):
@@ -257,11 +269,10 @@ def _simulation_config(
     config: SyntheticSweepConfig,
     warp_strength: float,
     noise_sigma: float,
-    case_index: int,
 ) -> SeeingSimulationConfig:
     return SeeingSimulationConfig(
         frame_count=config.frame_count,
-        random_seed=config.random_seed + case_index,
+        random_seed=config.random_seed,
         temporal_correlation=config.temporal_correlation,
         warp_scales=tuple(
             WarpScaleConfig(
@@ -271,8 +282,8 @@ def _simulation_config(
             )
             for scale in config.base_warp_scales
         ),
-        telescope_psf_sigma_px=0.0,
-        seeing_blur_sigma_px=0.0,
+        telescope_psf_sigma_px=config.telescope_psf_sigma_px,
+        seeing_blur_sigma_px=config.seeing_blur_sigma_px,
         gaussian_noise_sigma=noise_sigma,
     )
 
@@ -323,6 +334,8 @@ def _config_to_dict(config: SyntheticSweepConfig) -> dict[str, Any]:
         "temporal_correlation": config.temporal_correlation,
         "warp_strengths": list(config.warp_strengths),
         "noise_sigmas": list(config.noise_sigmas),
+        "telescope_psf_sigma_px": config.telescope_psf_sigma_px,
+        "seeing_blur_sigma_px": config.seeing_blur_sigma_px,
         "frequency_bins": config.frequency_bins,
         "base_warp_scales": [
             {

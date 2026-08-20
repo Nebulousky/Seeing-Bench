@@ -9,6 +9,8 @@
   "temporal_correlation": 0.8,
   "warp_strengths": [0.0, 0.5, 1.0, 2.0],
   "noise_sigmas": [0.0, 0.01, 0.03, 0.05],
+  "telescope_psf_sigma_px": 0.8,
+  "seeing_blur_sigma_px": 0.4,
   "frequency_bins": 12,
   "base_warp_scales": [
     {

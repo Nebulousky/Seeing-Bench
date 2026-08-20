@@ -46,15 +46,19 @@ def lunar_resolution_m_per_px(
 
 
 def diffraction_frequency_fraction(config: TelescopeConfig) -> float:
-    """Return diffraction limit as a fraction of the Nyquist frequency.
+    """Return incoherent diffraction cutoff as a fraction of sensor Nyquist frequency.
 
     Values below 1 mean diffraction removes contrast before the sensor Nyquist limit. Values
     above 1 mean the sensor undersamples the diffraction-limited image.
     """
 
-    sample = plate_scale_arcsec_per_px(config)
-    diffraction = diffraction_limit_arcsec(config)
-    return min(1.0, sample / (2.0 * diffraction))
+    config.validate()
+    sample_radians = plate_scale_arcsec_per_px(config) / ARCSEC_PER_RADIAN
+    aperture_m = config.aperture_mm * 1e-3
+    wavelength_m = config.wavelength_nm * 1e-9
+    diffraction_cutoff_cycles_per_rad = aperture_m / wavelength_m
+    sensor_nyquist_cycles_per_rad = 1.0 / (2.0 * sample_radians)
+    return diffraction_cutoff_cycles_per_rad / sensor_nyquist_cycles_per_rad
 
 
 def telescope_metadata(config: TelescopeConfig) -> dict[str, Any]:
@@ -68,5 +72,6 @@ def telescope_metadata(config: TelescopeConfig) -> dict[str, Any]:
         "lunar_resolution_m_per_px_at_mean_distance": lunar_resolution_m_per_px(config),
         "diffraction_frequency_fraction_of_nyquist": diffraction_frequency_fraction(config),
         "rayleigh_formula": "1.22 * wavelength / aperture",
+        "diffraction_cutoff_formula": "(aperture / wavelength) / sensor_nyquist",
         "plate_scale_formula": "206264.806 * pixel_size / focal_length",
     }

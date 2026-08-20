@@ -22,6 +22,8 @@ def test_synthetic_sweep_config_loads_from_json(tmp_path: Path) -> None:
                 "frame_count": 3,
                 "warp_strengths": [0.0, 1.0],
                 "noise_sigmas": [0.0, 0.02],
+                "telescope_psf_sigma_px": 0.7,
+                "seeing_blur_sigma_px": 0.2,
                 "frequency_bins": 4,
                 "base_warp_scales": [
                     {
@@ -40,6 +42,8 @@ def test_synthetic_sweep_config_loads_from_json(tmp_path: Path) -> None:
     assert config.name == "tiny"
     assert config.warp_strengths == (0.0, 1.0)
     assert config.noise_sigmas == (0.0, 0.02)
+    assert config.telescope_psf_sigma_px == 0.7
+    assert config.seeing_blur_sigma_px == 0.2
     assert config.base_warp_scales[0].name == "test"
 
 
@@ -53,6 +57,8 @@ def test_synthetic_sweep_writes_metrics_and_summary(tmp_path: Path) -> None:
         random_seed=5,
         warp_strengths=(0.0, 1.0),
         noise_sigmas=(0.0,),
+        telescope_psf_sigma_px=0.0,
+        seeing_blur_sigma_px=0.0,
         frequency_bins=4,
     )
 
