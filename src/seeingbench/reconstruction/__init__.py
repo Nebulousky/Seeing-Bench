@@ -6,6 +6,7 @@ from seeingbench.reconstruction.adapter import (
     ManualImportAdapter,
     OracleAlignedStackAdapter,
     ReconstructionAdapter,
+    TranslationAlignedStackAdapter,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "ManualImportAdapter",
     "OracleAlignedStackAdapter",
     "ReconstructionAdapter",
+    "TranslationAlignedStackAdapter",
 ]

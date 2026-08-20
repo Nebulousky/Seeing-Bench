@@ -22,6 +22,7 @@ from seeingbench.io.images import load_grayscale_image
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
     OracleAlignedStackAdapter,
+    TranslationAlignedStackAdapter,
     copy_manual_reconstruction,
 )
 from seeingbench.simulation.atmosphere import SeeingModel
@@ -61,6 +62,14 @@ def _build_parser() -> argparse.ArgumentParser:
     baseline.add_argument("--case", required=True, type=Path)
     baseline.add_argument("--output", required=True, type=Path)
     baseline.set_defaults(func=_baseline_stack)
+
+    translation = subparsers.add_parser(
+        "translation-stack",
+        help="create a global-translation aligned stack baseline",
+    )
+    translation.add_argument("--case", required=True, type=Path)
+    translation.add_argument("--output", required=True, type=Path)
+    translation.set_defaults(func=_translation_stack)
 
     oracle = subparsers.add_parser(
         "oracle-stack",
@@ -195,6 +204,14 @@ def _apply_simulation_overrides(
 
 def _baseline_stack(args: argparse.Namespace) -> int:
     adapter = BaselineStackAdapter()
+    adapter.prepare(args.case, args.output)
+    adapter.execute(args.case, args.output)
+    adapter.collect_results(args.case, args.output)
+    return 0
+
+
+def _translation_stack(args: argparse.Namespace) -> int:
+    adapter = TranslationAlignedStackAdapter()
     adapter.prepare(args.case, args.output)
     adapter.execute(args.case, args.output)
     adapter.collect_results(args.case, args.output)

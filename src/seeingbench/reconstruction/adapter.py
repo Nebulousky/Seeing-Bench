@@ -14,6 +14,7 @@ import numpy as np
 
 from seeingbench.benchmark.case import load_benchmark_case
 from seeingbench.io.images import load_grayscale_image, write_grayscale_tiff
+from seeingbench.reconstruction.alignment import constant_displacement, estimate_integer_translation
 from seeingbench.simulation.warp import apply_warp
 
 
@@ -127,6 +128,70 @@ class BaselineStackAdapter:
     def collect_results(self, benchmark_case: Path, result_dir: Path) -> None:
         if not (result_dir / "reconstruction.tif").exists():
             raise FileNotFoundError("baseline stack did not produce reconstruction.tif")
+
+
+@dataclass(frozen=True)
+class TranslationAlignedStackAdapter:
+    """Estimate global frame translations and average aligned frames."""
+
+    name: str = "translation_stack"
+
+    def prepare(self, benchmark_case: Path, result_dir: Path) -> None:
+        result_dir.mkdir(parents=True, exist_ok=True)
+        (result_dir / "warp_fields").mkdir(parents=True, exist_ok=True)
+
+    def execute(self, benchmark_case: Path, result_dir: Path) -> None:
+        frames = [
+            load_grayscale_image(path)
+            for path in sorted((benchmark_case / "input").glob("frame_*.tif"))
+        ]
+        if not frames:
+            raise FileNotFoundError(f"no input frames found under {benchmark_case / 'input'}")
+        shape = frames[0].shape
+        if any(frame.shape != shape for frame in frames):
+            raise ValueError("all input frames must have the same shape")
+
+        reference = frames[0]
+        shifts: list[dict[str, float | int]] = []
+        estimated_fields: list[np.ndarray] = []
+        aligned_frames: list[np.ndarray] = []
+        for index, frame in enumerate(frames, start=1):
+            shift_x, shift_y = estimate_integer_translation(reference, frame)
+            shifts.append({"frame": index, "u_px": shift_x, "v_px": shift_y})
+            estimated_field = constant_displacement(shape, shift_x, shift_y)
+            estimated_fields.append(estimated_field)
+            aligned_frames.append(apply_warp(frame, -estimated_field))
+
+        reconstruction = np.clip(np.mean(np.stack(aligned_frames), axis=0), 0.0, 1.0).astype(
+            np.float64
+        )
+        write_grayscale_tiff(result_dir / "reconstruction.tif", reconstruction)
+
+        warp_dir = result_dir / "warp_fields"
+        warp_dir.mkdir(parents=True, exist_ok=True)
+        for index, field in enumerate(estimated_fields, start=1):
+            np.save(warp_dir / f"warp_{index:06d}.npy", field)
+
+        (result_dir / "estimated_global_translations.json").write_text(
+            json.dumps(shifts, indent=2),
+            encoding="utf-8",
+        )
+        (result_dir / "metadata.json").write_text(
+            json.dumps(
+                {
+                    "adapter": self.name,
+                    "frame_count": len(frames),
+                    "method": "phase-correlation integer global translation alignment",
+                    "reference_frame": 1,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    def collect_results(self, benchmark_case: Path, result_dir: Path) -> None:
+        if not (result_dir / "reconstruction.tif").exists():
+            raise FileNotFoundError("translation stack did not produce reconstruction.tif")
 
 
 @dataclass(frozen=True)

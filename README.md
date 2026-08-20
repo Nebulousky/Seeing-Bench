@@ -20,6 +20,7 @@ unsupported fine detail.
   - `truth/warp_000001.npy`, `truth/warp_000002.npy`, ...
   - `metadata.json`
 - Baseline mean-stack adapter.
+- Global phase-correlation translation-stack adapter.
 - Synthetic-only oracle aligned-stack adapter for upper-bound validation.
 - Metrics: MSE, PSNR, global SSIM, gradient correlation, radial frequency recovery,
   diffraction-relative recovery, false-detail energy, and optional warp recovery error.
@@ -57,6 +58,12 @@ Create a simple baseline reconstruction by averaging the input frames:
 
 ```bash
 seeingbench baseline-stack --case benchmarks/generated/demo --output outputs/demo-baseline
+```
+
+Create a global-translation aligned baseline using only the input frames:
+
+```bash
+seeingbench translation-stack --case benchmarks/generated/demo --output outputs/demo-translation
 ```
 
 Create a synthetic-only oracle upper-bound stack using retained truth warp fields:

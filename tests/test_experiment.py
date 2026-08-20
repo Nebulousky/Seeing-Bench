@@ -58,7 +58,7 @@ def test_synthetic_sweep_writes_metrics_and_summary(tmp_path: Path) -> None:
 
     comparison = run_synthetic_sweep(config, tmp_path / "sweep")
 
-    assert len(comparison["rows"]) == 6
+    assert len(comparison["rows"]) == 8
     assert (tmp_path / "sweep" / "comparison.json").exists()
     assert (tmp_path / "sweep" / "summary.md").exists()
     assert (
@@ -67,5 +67,6 @@ def test_synthetic_sweep_writes_metrics_and_summary(tmp_path: Path) -> None:
     assert {row["algorithm"] for row in comparison["rows"]} == {
         "single_frame",
         "mean_stack",
+        "translation_stack",
         "oracle_aligned_stack",
     }

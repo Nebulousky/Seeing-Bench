@@ -11,11 +11,17 @@ from seeingbench.evaluation.frequency import frequency_recovery_limit, radial_fr
 from seeingbench.evaluation.image_metrics import image_similarity_metrics
 from seeingbench.evaluation.structure import gradient_correlation
 from seeingbench.io.images import write_grayscale_tiff
-from seeingbench.reconstruction.adapter import BaselineStackAdapter, OracleAlignedStackAdapter
-from seeingbench.simulation.atmosphere import SeeingModel
+from seeingbench.reconstruction.adapter import (
+    BaselineStackAdapter,
+    OracleAlignedStackAdapter,
+    TranslationAlignedStackAdapter,
+)
+from seeingbench.reconstruction.alignment import constant_displacement, estimate_integer_translation
+from seeingbench.simulation.atmosphere import SeeingModel, SimulationResult
 from seeingbench.simulation.config import SeeingSimulationConfig, WarpScaleConfig
 from seeingbench.simulation.psf import gaussian_blur
 from seeingbench.simulation.source import crater_field
+from seeingbench.simulation.warp import apply_warp
 
 
 def test_mean_stack_empirically_beats_single_noisy_frame(tmp_path: Path) -> None:
@@ -155,6 +161,70 @@ def test_oracle_aligned_stack_empirically_beats_mean_stack_under_warp(
     }
 
 
+def test_phase_correlation_estimates_integer_translation() -> None:
+    truth = crater_field((64, 64), crater_count=30, seed=6)
+    shifted = apply_known_translation(truth, u_px=2.0, v_px=-1.0)
+
+    assert estimate_integer_translation(truth, shifted) == (2.0, -1.0)
+
+
+def test_translation_stack_recovers_controlled_global_shifts(tmp_path: Path) -> None:
+    truth = crater_field((64, 64), crater_count=30, seed=6)
+    shifts = ((0.0, 0.0), (2.0, -1.0), (-3.0, 2.0), (1.0, 1.0), (4.0, 0.0))
+    warp_fields = np.stack([constant_displacement(truth.shape, u, v) for u, v in shifts])
+    frames = np.stack([apply_known_translation(truth, u, v) for u, v in shifts])
+    simulation = SimulationResult(
+        frames=frames,
+        latent_truth=truth,
+        warp_fields=warp_fields,
+        warp_components={},
+        psf_information={},
+        noise_information={},
+        metadata={
+            "benchmark_mode": "synthetic",
+            "validation_boundary": "controlled translation-only test",
+        },
+    )
+    case_dir = tmp_path / "case"
+    save_simulation_case(simulation, case_dir)
+
+    mean_dir = tmp_path / "mean"
+    mean_adapter = BaselineStackAdapter()
+    mean_adapter.prepare(case_dir, mean_dir)
+    mean_adapter.execute(case_dir, mean_dir)
+    mean_adapter.collect_results(case_dir, mean_dir)
+
+    translation_dir = tmp_path / "translation"
+    translation_adapter = TranslationAlignedStackAdapter()
+    translation_adapter.prepare(case_dir, translation_dir)
+    translation_adapter.execute(case_dir, translation_dir)
+    translation_adapter.collect_results(case_dir, translation_dir)
+
+    mean = evaluate_reconstruction(case_dir, mean_dir, algorithm="mean_stack")
+    translation = evaluate_reconstruction(
+        case_dir,
+        translation_dir,
+        algorithm="translation_stack",
+    )
+
+    assert translation.image_similarity["mse"] < mean.image_similarity["mse"] * 0.05
+    assert translation.image_similarity["psnr_db"] > mean.image_similarity["psnr_db"] + 10.0
+    assert (
+        translation.structural_accuracy["gradient_correlation"]
+        > mean.structural_accuracy["gradient_correlation"] + 0.3
+    )
+    assert (
+        translation.false_detail["unsupported_energy_fraction"]
+        < mean.false_detail["unsupported_energy_fraction"]
+    )
+    assert translation.warp_recovery == {
+        "mean_px": 0.0,
+        "median_px": 0.0,
+        "p95_px": 0.0,
+        "max_px": 0.0,
+    }
+
+
 def test_frequency_recovery_ranks_blur_levels() -> None:
     truth = crater_field((64, 64), crater_count=40, seed=12)
     mildly_blurred = gaussian_blur(truth, sigma_px=0.6)
@@ -170,3 +240,7 @@ def test_frequency_recovery_ranks_blur_levels() -> None:
     )
 
     assert mild_limit > heavy_limit
+
+
+def apply_known_translation(truth: np.ndarray, u_px: float, v_px: float) -> np.ndarray:
+    return apply_warp(truth, constant_displacement(truth.shape, u_px, v_px))

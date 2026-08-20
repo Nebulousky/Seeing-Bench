@@ -14,7 +14,11 @@ from seeingbench.benchmark.case import save_simulation_case
 from seeingbench.benchmark.result import EvaluationReport
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
 from seeingbench.io.images import load_grayscale_image, write_grayscale_tiff
-from seeingbench.reconstruction.adapter import BaselineStackAdapter, OracleAlignedStackAdapter
+from seeingbench.reconstruction.adapter import (
+    BaselineStackAdapter,
+    OracleAlignedStackAdapter,
+    TranslationAlignedStackAdapter,
+)
 from seeingbench.simulation.atmosphere import SeeingModel
 from seeingbench.simulation.config import SeeingSimulationConfig, WarpScaleConfig
 from seeingbench.simulation.source import crater_field
@@ -218,6 +222,12 @@ def _evaluate_scenario(
     mean_adapter.execute(case_dir, mean_dir)
     mean_adapter.collect_results(case_dir, mean_dir)
 
+    translation_dir = result_root / "translation_stack"
+    translation_adapter = TranslationAlignedStackAdapter()
+    translation_adapter.prepare(case_dir, translation_dir)
+    translation_adapter.execute(case_dir, translation_dir)
+    translation_adapter.collect_results(case_dir, translation_dir)
+
     oracle_dir = result_root / "oracle_aligned_stack"
     oracle_adapter = OracleAlignedStackAdapter()
     oracle_adapter.prepare(case_dir, oracle_dir)
@@ -228,6 +238,7 @@ def _evaluate_scenario(
     for algorithm, result_dir in (
         ("single_frame", single_dir),
         ("mean_stack", mean_dir),
+        ("translation_stack", translation_dir),
         ("oracle_aligned_stack", oracle_dir),
     ):
         report = evaluate_reconstruction(
