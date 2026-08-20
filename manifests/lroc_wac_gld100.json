@@ -1,0 +1,13 @@
+{
+  "name": "LROC WAC GLD100 Global DTM",
+  "source": "https://data.lroc.im-ldi.com/lroc/view_rdr/WAC_GLD100",
+  "version": "RDR product page current on 2026-08-20; exact tile labels/checksums unresolved",
+  "expected_size": "TBD per selected 100 m/pixel tiles",
+  "checksum": null,
+  "local_destination": "data/lroc/gld100",
+  "license": "TBD from PDS labels before distribution",
+  "provenance": "GLD100 WAC stereo-derived DTM from LROC team / DLR",
+  "resolution": "100 meters/pixel tiles; formal effective resolution noted by source as closer to 300 meters",
+  "coordinate_system": "Equirectangular equatorial tiles and polar stereographic tiles; polar fill uses LOLA below non-100m products",
+  "notes": "Candidate terrain model for non-polar Phase 2 reference rendering."
+}

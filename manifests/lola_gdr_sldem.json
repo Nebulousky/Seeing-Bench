@@ -1,0 +1,13 @@
+{
+  "name": "LOLA GDR / SLDEM Derived Topography",
+  "source": "https://pds-geosciences.wustl.edu/missions/lro/lola.htm",
+  "version": "LRO Release 66 noted by PDS on 2026-06-15; exact product labels/checksums unresolved",
+  "expected_size": "TBD per selected GDR or SLDEM products",
+  "checksum": null,
+  "local_destination": "data/lola",
+  "license": "TBD from PDS labels before distribution",
+  "provenance": "LOLA Science Team at NASA Goddard Space Flight Center via PDS Geosciences Node / LOLA Data Node",
+  "resolution": "Product-dependent; use GDR/SLDEM products appropriate to approximately 100-120 meters/pixel internal target",
+  "coordinate_system": "TBD per selected PDS4 product labels and SIS",
+  "notes": "Candidate topography source, especially for polar regions and shape support."
+}

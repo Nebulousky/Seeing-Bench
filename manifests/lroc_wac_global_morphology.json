@@ -1,0 +1,13 @@
+{
+  "name": "LROC WAC Global Morphologic Map",
+  "source": "https://data.lroc.im-ldi.com/lroc/view_rdr/WAC_GLOBAL",
+  "version": "RDR product page current on 2026-08-20; exact tile labels/checksums unresolved",
+  "expected_size": "TBD per selected 100 m/pixel tiles",
+  "checksum": null,
+  "local_destination": "data/lroc/wac_global",
+  "license": "Public Domain for USGS-hosted WAC global morphology image; verify per PDS labels before distribution",
+  "provenance": "LROC Team / Arizona State University WAC global morphologic map, 643 nm band",
+  "resolution": "100 meters/pixel, 256 pixels/degree, and 128 pixels/degree tile options",
+  "coordinate_system": "Product tiles use equirectangular and polar stereographic projections; longitude naming is east-positive in product names",
+  "notes": "Candidate Phase 2 surface morphology reference. No data downloaded by this manifest."
+}

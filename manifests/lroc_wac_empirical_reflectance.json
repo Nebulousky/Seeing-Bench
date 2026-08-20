@@ -1,0 +1,13 @@
+{
+  "name": "LROC WAC Empirically Normalized Reflectance Mosaic",
+  "source": "https://data.lroc.im-ldi.com/lroc/view_rdr/WAC_EMP",
+  "version": "RDR product page current on 2026-08-20; exact tile labels/checksums unresolved",
+  "expected_size": "TBD per selected 304 pixels/degree 643 nm tiles or 64 pixels/degree color tiles",
+  "checksum": null,
+  "local_destination": "data/lroc/wac_emp",
+  "license": "TBD from PDS labels before distribution",
+  "provenance": "LROC Team / Arizona State University empirically normalized WAC mosaic",
+  "resolution": "304 pixels/degree for 643 nm approximately 100 meters/pixel; 64 pixels/degree for all seven bands",
+  "coordinate_system": "Simple cylindrical regional tiles and polar stereographic 643 nm polar tiles",
+  "notes": "Candidate albedo/reflectance source where photometric normalization matters."
+}

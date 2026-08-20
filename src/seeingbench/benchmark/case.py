@@ -24,6 +24,7 @@ class BenchmarkCase:
     metadata: dict[str, Any]
     latent_truth: FloatArray
     warp_fields: FloatArray
+    warp_components: dict[str, FloatArray]
 
 
 def save_simulation_case(result: SimulationResult, root: Path) -> None:
@@ -69,9 +70,26 @@ def load_benchmark_case(root: Path) -> BenchmarkCase:
     if not warp_paths:
         raise FileNotFoundError(f"no warp truth fields found under {root / 'truth'}")
     warp_fields = np.stack([np.load(path).astype(np.float64, copy=False) for path in warp_paths])
+    components = _load_warp_components(root / "truth" / "warp_components.npz")
     return BenchmarkCase(
         root=root,
         metadata=metadata,
         latent_truth=latent,
         warp_fields=warp_fields,
+        warp_components=components,
     )
+
+
+def load_input_frame(root: Path, index: int = 1) -> FloatArray:
+    """Load one degraded input frame from a benchmark case."""
+
+    if index <= 0:
+        raise ValueError("frame index is one-based and must be positive")
+    return load_grayscale_image(root / "input" / f"frame_{index:06d}.tif")
+
+
+def _load_warp_components(path: Path) -> dict[str, FloatArray]:
+    if not path.exists():
+        return {}
+    archive = np.load(path)
+    return {name: archive[name].astype(np.float64, copy=False) for name in archive.files}

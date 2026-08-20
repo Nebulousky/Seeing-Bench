@@ -118,6 +118,7 @@ Imperative commit subject <=72 characters; the body explains **why**. Full rules
 |---|---|
 | `docs/architecture.md` | Layering, module map, dependency direction, project-wide conventions |
 | `docs/data-handling.md` | Precision, types, conventions, what must never be silently destroyed |
+| `docs/configuration.md` | Synthetic config schema, defaults, units, and CLI override behaviour |
 | `docs/development/testing.md` | What "validated" means; how the scaffolding itself is evaluated |
 | `docs/development/git.md` | Branching, history, commit conventions, versioning |
 | `docs/development/agent-context.md` | What agents load and persist; auto memory and promotion |

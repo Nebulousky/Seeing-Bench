@@ -16,8 +16,8 @@ source, produces atmosphere-degraded frames with retained latent and warp truth,
 external reconstructions, computes complementary metrics, and writes diagnostics/reports.
 
 **Exit:** a user can generate a case, run a baseline or external reconstruction, evaluate it
-against retained truth, render a readable report, and reproduce the same metrics from the
-same seed and config.
+against retained truth, compare multiple results, render readable reports, and reproduce the
+same metrics from the same seed and config.
 
 ### Phase 2 - LROC WAC and LOLA Integration
 

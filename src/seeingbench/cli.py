@@ -10,7 +10,8 @@ from typing import Any
 
 import numpy as np
 
-from seeingbench.benchmark.case import load_benchmark_case, save_simulation_case
+from seeingbench.benchmark.case import load_benchmark_case, load_input_frame, save_simulation_case
+from seeingbench.benchmark.compare import write_comparison_json, write_comparison_markdown
 from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
 from seeingbench.io.images import load_grayscale_image
@@ -73,6 +74,12 @@ def _build_parser() -> argparse.ArgumentParser:
     report.add_argument("--metrics", required=True, type=Path)
     report.add_argument("--output", required=True, type=Path)
     report.set_defaults(func=_report)
+
+    compare = subparsers.add_parser("compare", help="compare two or more metrics reports")
+    compare.add_argument("inputs", nargs="+", type=Path)
+    compare.add_argument("--output", required=True, type=Path)
+    compare.add_argument("--format", choices=("markdown", "json"), default="markdown")
+    compare.set_defaults(func=_compare)
     return parser
 
 
@@ -170,6 +177,9 @@ def _evaluate(args: argparse.Namespace) -> int:
             case.latent_truth,
             reconstruction,
             report.frequency_recovery["bins"],
+            degraded_frame=load_input_frame(args.case, index=1),
+            warp_fields=case.warp_fields,
+            warp_components=case.warp_components,
         )
         _append_diagnostics(output, diagnostics)
     return 0
@@ -177,6 +187,14 @@ def _evaluate(args: argparse.Namespace) -> int:
 
 def _report(args: argparse.Namespace) -> int:
     write_markdown_report(args.metrics, args.output)
+    return 0
+
+
+def _compare(args: argparse.Namespace) -> int:
+    if args.format == "json":
+        write_comparison_json(args.inputs, args.output)
+    else:
+        write_comparison_markdown(args.inputs, args.output)
     return 0
 
 

@@ -62,8 +62,8 @@ smooth multiscale warp fields, Gaussian PSF/noise, approximate spatially varying
 blur, explicit integer sensor-grid downsampling, explicit sensor saturation metadata,
 TIFF/NumPy benchmark export, baseline mean-stack adapter, image/structure/frequency/
 false-detail/warp metrics, diffraction-relative frequency interpretation, Markdown reports,
-CLI commands, and unit tests. LRO/LOLA/NAC/SPICE integration and real Earth-view rendering
-are not implemented.
+comparison reports, richer diagnostics, CLI commands, and unit tests. LRO/LOLA/NAC/SPICE
+integration and real Earth-view rendering are not implemented.
 
 ## Related
 

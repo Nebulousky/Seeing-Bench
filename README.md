@@ -22,7 +22,8 @@ unsupported fine detail.
 - Baseline mean-stack adapter.
 - Metrics: MSE, PSNR, global SSIM, gradient correlation, radial frequency recovery,
   diffraction-relative recovery, false-detail energy, and optional warp recovery error.
-- Diagnostic residual images and frequency-recovery CSV output.
+- Diagnostic truth/reconstruction/frame exports, residual maps, blink pair, warp magnitude,
+  warp summaries, and frequency-recovery CSV output.
 
 ## Install
 
@@ -76,6 +77,15 @@ seeingbench report \
   --output outputs/demo-baseline/report.md
 ```
 
+Compare multiple algorithm outputs:
+
+```bash
+seeingbench compare \
+  outputs/demo-baseline \
+  outputs/another-run \
+  --output outputs/comparison.md
+```
+
 To evaluate an external reconstruction, place or import a `reconstruction.tif` into a result
 directory:
 
@@ -109,3 +119,5 @@ pytest -q
 python .claude/hooks/scaffold_check.py
 python .claude/hooks/licence_check.py
 ```
+
+Configuration fields and units are documented in `docs/configuration.md`.

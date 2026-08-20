@@ -1,0 +1,13 @@
+{
+  "name": "LRO SPICE Kernel Archive",
+  "source": "https://naif.jpl.nasa.gov/pub/naif/pds/data/lro-l-spice-6-v1.0/lrosp_1000/aareadme.htm",
+  "version": "Accumulating archive; exact kernel set selected by observation time",
+  "expected_size": "TBD per selected meta-kernel and coverage interval",
+  "checksum": null,
+  "local_destination": "data/spice/lro",
+  "license": "TBD from NAIF/PDS archive labels before distribution",
+  "provenance": "PDS NAIF Node LRO SPICE archive",
+  "resolution": "N/A geometry kernels",
+  "coordinate_system": "SPICE kernels; use NAIF Toolkit/spiceypy and explicit lunar frame selection",
+  "notes": "Candidate geometry source for observer, Sun, Moon orientation, spacecraft ephemeris, and instrument frames."
+}
