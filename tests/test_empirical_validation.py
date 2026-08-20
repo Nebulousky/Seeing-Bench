@@ -11,7 +11,7 @@ from seeingbench.evaluation.frequency import frequency_recovery_limit, radial_fr
 from seeingbench.evaluation.image_metrics import image_similarity_metrics
 from seeingbench.evaluation.structure import gradient_correlation
 from seeingbench.io.images import write_grayscale_tiff
-from seeingbench.reconstruction.adapter import BaselineStackAdapter
+from seeingbench.reconstruction.adapter import BaselineStackAdapter, OracleAlignedStackAdapter
 from seeingbench.simulation.atmosphere import SeeingModel
 from seeingbench.simulation.config import SeeingSimulationConfig, WarpScaleConfig
 from seeingbench.simulation.psf import gaussian_blur
@@ -95,6 +95,64 @@ def test_false_detail_penalises_unsupported_checkerboard_texture() -> None:
         truth,
         smooth_reconstruction,
     )
+
+
+def test_oracle_aligned_stack_empirically_beats_mean_stack_under_warp(
+    tmp_path: Path,
+) -> None:
+    truth = crater_field((96, 96), crater_count=45, seed=15)
+    config = SeeingSimulationConfig(
+        frame_count=12,
+        random_seed=21,
+        temporal_correlation=0.75,
+        warp_scales=(
+            WarpScaleConfig("large", amplitude_px=1.8, correlation_px=42.0),
+            WarpScaleConfig("fine", amplitude_px=0.5, correlation_px=10.0),
+        ),
+        telescope_psf_sigma_px=0.0,
+        seeing_blur_sigma_px=0.0,
+        gaussian_noise_sigma=0.01,
+    )
+    simulation = SeeingModel().generate(
+        truth,
+        config,
+        np.random.default_rng(config.random_seed),
+    )
+    case_dir = tmp_path / "case"
+    save_simulation_case(simulation, case_dir)
+
+    mean_dir = tmp_path / "mean"
+    mean_adapter = BaselineStackAdapter()
+    mean_adapter.prepare(case_dir, mean_dir)
+    mean_adapter.execute(case_dir, mean_dir)
+    mean_adapter.collect_results(case_dir, mean_dir)
+
+    oracle_dir = tmp_path / "oracle"
+    oracle_adapter = OracleAlignedStackAdapter()
+    oracle_adapter.prepare(case_dir, oracle_dir)
+    oracle_adapter.execute(case_dir, oracle_dir)
+    oracle_adapter.collect_results(case_dir, oracle_dir)
+
+    mean = evaluate_reconstruction(case_dir, mean_dir, algorithm="mean_stack")
+    oracle = evaluate_reconstruction(case_dir, oracle_dir, algorithm="oracle_aligned_stack")
+
+    assert oracle.image_similarity["mse"] < mean.image_similarity["mse"] * 0.25
+    assert oracle.image_similarity["psnr_db"] > mean.image_similarity["psnr_db"] + 5.0
+    assert oracle.image_similarity["ssim_global"] > mean.image_similarity["ssim_global"]
+    assert (
+        oracle.structural_accuracy["gradient_correlation"]
+        > mean.structural_accuracy["gradient_correlation"] + 0.25
+    )
+    assert (
+        oracle.false_detail["unsupported_energy_fraction"]
+        < mean.false_detail["unsupported_energy_fraction"]
+    )
+    assert oracle.warp_recovery == {
+        "mean_px": 0.0,
+        "median_px": 0.0,
+        "p95_px": 0.0,
+        "max_px": 0.0,
+    }
 
 
 def test_frequency_recovery_ranks_blur_levels() -> None:

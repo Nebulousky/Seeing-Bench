@@ -12,7 +12,9 @@ from typing import Protocol
 
 import numpy as np
 
+from seeingbench.benchmark.case import load_benchmark_case
 from seeingbench.io.images import load_grayscale_image, write_grayscale_tiff
+from seeingbench.simulation.warp import apply_warp
 
 
 class ReconstructionAdapter(Protocol):
@@ -125,6 +127,60 @@ class BaselineStackAdapter:
     def collect_results(self, benchmark_case: Path, result_dir: Path) -> None:
         if not (result_dir / "reconstruction.tif").exists():
             raise FileNotFoundError("baseline stack did not produce reconstruction.tif")
+
+
+@dataclass(frozen=True)
+class OracleAlignedStackAdapter:
+    """Synthetic-only upper bound that aligns frames with retained truth warps."""
+
+    name: str = "oracle_aligned_stack"
+
+    def prepare(self, benchmark_case: Path, result_dir: Path) -> None:
+        result_dir.mkdir(parents=True, exist_ok=True)
+        (result_dir / "warp_fields").mkdir(parents=True, exist_ok=True)
+
+    def execute(self, benchmark_case: Path, result_dir: Path) -> None:
+        case = load_benchmark_case(benchmark_case)
+        frames = [
+            load_grayscale_image(path)
+            for path in sorted((benchmark_case / "input").glob("frame_*.tif"))
+        ]
+        if len(frames) != len(case.warp_fields):
+            raise ValueError(
+                "input frame count must match retained warp truth count for oracle alignment"
+            )
+
+        aligned = np.stack(
+            [apply_warp(frame, -warp) for frame, warp in zip(frames, case.warp_fields, strict=True)]
+        )
+        reconstruction = np.clip(np.mean(aligned, axis=0), 0.0, 1.0).astype(np.float64)
+        write_grayscale_tiff(result_dir / "reconstruction.tif", reconstruction)
+
+        warp_dir = result_dir / "warp_fields"
+        warp_dir.mkdir(parents=True, exist_ok=True)
+        for index, warp in enumerate(case.warp_fields, start=1):
+            np.save(warp_dir / f"warp_{index:06d}.npy", warp)
+
+        (result_dir / "metadata.json").write_text(
+            json.dumps(
+                {
+                    "adapter": self.name,
+                    "frame_count": len(frames),
+                    "method": "mean stack after applying negative retained synthetic warp fields",
+                    "synthetic_oracle": True,
+                    "validation_boundary": (
+                        "uses SeeingBench-retained truth and must not be treated as a "
+                        "deployable reconstruction algorithm"
+                    ),
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+
+    def collect_results(self, benchmark_case: Path, result_dir: Path) -> None:
+        if not (result_dir / "reconstruction.tif").exists():
+            raise FileNotFoundError("oracle stack did not produce reconstruction.tif")
 
 
 def copy_manual_reconstruction(source: Path, result_dir: Path) -> None:

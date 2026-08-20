@@ -18,7 +18,11 @@ from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
 from seeingbench.datasets.manifests import fetch_manifest_metadata, validate_manifest_files
 from seeingbench.io.images import load_grayscale_image
-from seeingbench.reconstruction.adapter import BaselineStackAdapter, copy_manual_reconstruction
+from seeingbench.reconstruction.adapter import (
+    BaselineStackAdapter,
+    OracleAlignedStackAdapter,
+    copy_manual_reconstruction,
+)
 from seeingbench.simulation.atmosphere import SeeingModel
 from seeingbench.simulation.config import (
     SeeingSimulationConfig,
@@ -56,6 +60,14 @@ def _build_parser() -> argparse.ArgumentParser:
     baseline.add_argument("--case", required=True, type=Path)
     baseline.add_argument("--output", required=True, type=Path)
     baseline.set_defaults(func=_baseline_stack)
+
+    oracle = subparsers.add_parser(
+        "oracle-stack",
+        help="create a synthetic-only truth-aligned stack upper bound",
+    )
+    oracle.add_argument("--case", required=True, type=Path)
+    oracle.add_argument("--output", required=True, type=Path)
+    oracle.set_defaults(func=_oracle_stack)
 
     import_result = subparsers.add_parser(
         "import-result", help="copy a reconstruction into result/"
@@ -171,6 +183,14 @@ def _apply_simulation_overrides(
 
 def _baseline_stack(args: argparse.Namespace) -> int:
     adapter = BaselineStackAdapter()
+    adapter.prepare(args.case, args.output)
+    adapter.execute(args.case, args.output)
+    adapter.collect_results(args.case, args.output)
+    return 0
+
+
+def _oracle_stack(args: argparse.Namespace) -> int:
+    adapter = OracleAlignedStackAdapter()
     adapter.prepare(args.case, args.output)
     adapter.execute(args.case, args.output)
     adapter.collect_results(args.case, args.output)
