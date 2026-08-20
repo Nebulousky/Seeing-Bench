@@ -18,6 +18,7 @@ from seeingbench.benchmark.experiment import load_synthetic_sweep_config, run_sy
 from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
 from seeingbench.datasets.manifests import fetch_manifest_metadata, validate_manifest_files
+from seeingbench.datasets.readiness import build_roi_readiness_report
 from seeingbench.io.images import load_grayscale_image
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
@@ -145,6 +146,16 @@ def _build_parser() -> argparse.ArgumentParser:
     fetch_metadata.add_argument("manifest", type=Path)
     fetch_metadata.add_argument("--output-root", required=True, type=Path)
     fetch_metadata.set_defaults(func=_datasets_fetch_metadata)
+
+    roi_readiness = dataset_subparsers.add_parser(
+        "roi-readiness",
+        help="inspect local cache readiness for a documented lunar ROI without downloading data",
+    )
+    roi_readiness.add_argument("--roi", required=True, type=Path)
+    roi_readiness.add_argument("--cache-root", type=Path, default=Path("."))
+    roi_readiness.add_argument("--manifest-root", type=Path, default=Path("."))
+    roi_readiness.add_argument("--output", type=Path)
+    roi_readiness.set_defaults(func=_datasets_roi_readiness)
     return parser
 
 
@@ -309,6 +320,17 @@ def _datasets_fetch_metadata(args: argparse.Namespace) -> int:
     written = fetch_manifest_metadata(args.manifest, args.output_root)
     sys.stdout.write(f"{json.dumps([str(path) for path in written], indent=2)}\n")
     return 0
+
+
+def _datasets_roi_readiness(args: argparse.Namespace) -> int:
+    report = build_roi_readiness_report(args.roi, args.cache_root, args.manifest_root)
+    payload = json.dumps(report, indent=2)
+    if args.output is None:
+        sys.stdout.write(f"{payload}\n")
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(payload, encoding="utf-8")
+    return 0 if report["ready"] else 1
 
 
 def _expand_path_patterns(paths: list[Path]) -> list[Path]:

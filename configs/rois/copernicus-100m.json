@@ -1,0 +1,29 @@
+{
+  "name": "copernicus-100m-reference",
+  "description": "Small equatorial ROI around Copernicus for Phase 2 Earth-view reference plumbing.",
+  "center_lat_deg": 9.62,
+  "center_lon_deg": -20.08,
+  "width_km": 220.0,
+  "height_km": 220.0,
+  "target_resolution_m_per_px": 100.0,
+  "required_products": [
+    {
+      "role": "reflectance",
+      "manifest": "manifests/lroc_wac_empirical_reflectance.json",
+      "required": true,
+      "notes": "Albedo/texture source for real lunar reference rendering."
+    },
+    {
+      "role": "terrain",
+      "manifest": "manifests/lroc_wac_gld100.json",
+      "required": true,
+      "notes": "Approximately 100 m/pixel terrain candidate for non-polar rendering."
+    },
+    {
+      "role": "geometry",
+      "manifest": "manifests/lro_spice_archive.json",
+      "required": true,
+      "notes": "Observation geometry inputs for the later SPICE-backed renderer."
+    }
+  ]
+}

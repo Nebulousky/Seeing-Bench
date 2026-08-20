@@ -64,7 +64,9 @@ TIFF/NumPy benchmark export, baseline mean-stack adapter, global and local block
 stack adapters, image/structure/frequency/false-detail/warp metrics, diffraction-relative
 frequency interpretation, Markdown reports, comparison reports, richer diagnostics, CLI
 commands, and unit tests. LRO/LOLA/NAC/SPICE integration and real Earth-view rendering are
-not implemented.
+not implemented. Phase 2 now has metadata-only ROI readiness checks for local cache
+presence and declared checksums; these checks do not download bulk products or render
+real-data references.
 
 ## Related
 

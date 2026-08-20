@@ -7,11 +7,23 @@ from seeingbench.datasets.manifests import (
     load_manifest,
     validate_manifest_files,
 )
+from seeingbench.datasets.readiness import (
+    LunarROIConfig,
+    ROIProductRequirement,
+    build_roi_readiness_report,
+    load_roi_config,
+    resolve_manifest_cache_path,
+)
 
 __all__ = [
     "DatasetManifest",
+    "LunarROIConfig",
     "MetadataDocument",
+    "ROIProductRequirement",
+    "build_roi_readiness_report",
     "fetch_manifest_metadata",
     "load_manifest",
+    "load_roi_config",
+    "resolve_manifest_cache_path",
     "validate_manifest_files",
 ]

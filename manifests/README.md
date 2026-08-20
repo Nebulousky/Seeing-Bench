@@ -18,3 +18,12 @@ Fetch only declared metadata/index documents:
 ```bash
 seeingbench datasets fetch-metadata manifests/lro_spice_archive.json --output-root data/cache
 ```
+
+Inspect local ROI readiness without downloading bulk products:
+
+```bash
+seeingbench datasets roi-readiness \
+  --roi configs/rois/copernicus-100m.json \
+  --cache-root . \
+  --manifest-root .
+```

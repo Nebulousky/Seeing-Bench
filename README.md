@@ -132,6 +132,16 @@ seeingbench datasets fetch-metadata \
   --output-root data/cache
 ```
 
+Inspect whether a documented real-data ROI is locally ready without downloading bulk data:
+
+```bash
+seeingbench datasets roi-readiness \
+  --roi configs/rois/copernicus-100m.json \
+  --cache-root . \
+  --manifest-root . \
+  --output outputs/copernicus-readiness.json
+```
+
 To evaluate an external reconstruction, place or import a `reconstruction.tif` into a result
 directory:
 

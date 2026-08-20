@@ -120,3 +120,35 @@ It uses the simulation fields above where names match, plus:
 - Sensor downsampling refuses shapes not divisible by `sensor_downsample_factor`.
 - Config loading rejects unknown fields.
 - Randomness is reproducible from the recorded seed when using the CLI.
+
+## Lunar ROI Config
+
+The ROI readiness command accepts a metadata-only JSON object:
+
+```bash
+seeingbench datasets roi-readiness --roi <path> --cache-root . --manifest-root .
+```
+
+The sample `configs/rois/copernicus-100m.json` defines a small Copernicus-centered target
+for Phase 2 plumbing. It names required product roles and manifests, but it does not imply
+that large products have been downloaded.
+
+| Field | Type | Units | Meaning |
+|---|---:|---|---|
+| `name` | string | label | Stable ROI identifier for reports. |
+| `description` | string | text | Optional human-readable purpose. |
+| `center_lat_deg` | number | degrees | ROI center latitude in `[-90, 90]`. |
+| `center_lon_deg` | number | degrees | ROI center longitude in `[-180, 360]`. |
+| `width_km` | number | km | Requested ROI width. |
+| `height_km` | number | km | Requested ROI height. |
+| `target_resolution_m_per_px` | number | m/pixel | Internal target sampling for reference construction. |
+| `required_products` | array | roles | Manifest-backed product roles required by the ROI. |
+
+Each `required_products` entry has:
+
+| Field | Type | Meaning |
+|---|---:|---|
+| `role` | string | Stable product role such as `reflectance`, `terrain`, or `geometry`. |
+| `manifest` | string | Repository-relative path to a dataset manifest. |
+| `required` | boolean | Whether missing or unresolved status blocks readiness; default `true`. |
+| `notes` | string | Optional role-specific context. |
