@@ -62,6 +62,7 @@ def test_simulation_config_loads_from_json(tmp_path: Path) -> None:
         {
           "frame_count": 2,
           "random_seed": 5,
+          "telescope_psf_model": "airy",
           "sensor_downsample_factor": 2,
           "spatial_blur_variation_sigma_px": 0.1,
           "global_motion_rms_px": 0.2,
@@ -77,6 +78,7 @@ def test_simulation_config_loads_from_json(tmp_path: Path) -> None:
 
     assert config.frame_count == 2
     assert config.random_seed == 5
+    assert config.telescope_psf_model == "airy"
     assert config.sensor_downsample_factor == 2
     assert config.spatial_blur_variation_sigma_px == 0.1
     assert config.global_motion_rms_px == 0.2
@@ -88,6 +90,28 @@ def test_default_psf_and_seeing_values_are_physically_conservative() -> None:
 
     assert config.telescope_psf_sigma_px == pytest.approx(1.656)
     assert config.seeing_blur_sigma_px == pytest.approx(2.0)
+
+
+def test_simulation_can_use_airy_telescope_psf() -> None:
+    image = np.zeros((33, 33), dtype=np.float64)
+    image[16, 16] = 1.0
+    config = SeeingSimulationConfig(
+        frame_count=1,
+        random_seed=10,
+        warp_scales=(WarpScaleConfig("none", amplitude_px=0.0, correlation_px=8.0),),
+        telescope_psf_model="airy",
+        seeing_blur_sigma_px=0.0,
+        global_motion_rms_px=0.0,
+        gaussian_noise_sigma=0.0,
+    )
+
+    result = SeeingModel().generate(image, config, np.random.default_rng(config.random_seed))
+    psf = result.psf_information["telescope_psf"]
+
+    assert psf["model"] == "airy"
+    assert psf["first_zero_radius_px"] > 0.0
+    assert result.frames[0, 16, 16] < 1.0
+    assert result.frames[0, 16, 16] > result.frames[0, 16, 17]
 
 
 def test_block_average_downsample_rejects_implicit_crop() -> None:

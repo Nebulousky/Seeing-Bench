@@ -21,6 +21,7 @@ parameters do not silently produce a different benchmark.
 | `temporal_correlation` | number | `0.85` | unitless | Frame-to-frame correlation for each warp scale; valid range is `[0, 1)`. |
 | `warp_scales` | array | large/medium/fine | pixels | Smooth displacement components retained separately in truth. |
 | `telescope` | object | see below | mixed | Telescope/camera geometry for physical metadata. |
+| `telescope_psf_model` | string | `gaussian` | model | Telescope PSF model: `gaussian` uses `telescope_psf_sigma_px`; `airy` uses the physical telescope geometry and central obstruction. |
 | `telescope_psf_sigma_px` | number | `1.656` | pixels | Gaussian approximation of the atmosphere-free telescope PSF for the default 200 mm f/20, 550 nm, 2.9 um setup. |
 | `seeing_blur_sigma_px` | number | `2.0` | pixels | Base Gaussian seeing blur applied after warping. |
 | `spatial_blur_variation_sigma_px` | number | `0.0` | pixels | Local blur variation around `seeing_blur_sigma_px`. |
@@ -57,8 +58,10 @@ component when `global_motion_rms_px` is non-zero.
 
 ## Telescope Config
 
-The telescope object records physical metadata and derived limits. It does not yet implement
-a full Airy PSF; `telescope_psf_sigma_px` controls the current image blur model.
+The telescope object records physical metadata and derived limits. The default simulation
+uses a Gaussian approximation controlled by `telescope_psf_sigma_px`; setting
+`telescope_psf_model` to `airy` uses a sampled Airy/annular-aperture diffraction kernel
+derived from the telescope geometry.
 
 | Field | Type | Default | Units | Meaning |
 |---|---:|---:|---|---|
@@ -300,6 +303,8 @@ renderer and is labelled `local_linear_orthographic_projection` in reports.
 Lambertian shading map derived from the `--terrain-role` DEM reference and SPICE sub-solar
 metadata. This is an explicit first-order structural aid, not a full lunar photometric
 model; reports label it `simple_lambertian_illumination_model`.
+`--psf-model airy` uses the physical Airy/annular-aperture PSF for telescope matching;
+the default `gaussian` keeps the previous Gaussian diffraction approximation.
 Telescope-reference rows preserve `label_provenance` and `label_summary` copied from the
 selected surface-reference row.
 

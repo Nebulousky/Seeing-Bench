@@ -12,7 +12,12 @@ from numpy.typing import NDArray
 import seeingbench
 from seeingbench.simulation.config import SeeingSimulationConfig
 from seeingbench.simulation.noise import add_gaussian_noise, apply_sensor_range
-from seeingbench.simulation.psf import gaussian_blur, spatially_varying_gaussian_blur
+from seeingbench.simulation.psf import (
+    airy_blur,
+    airy_first_zero_radius_px,
+    gaussian_blur,
+    spatially_varying_gaussian_blur,
+)
 from seeingbench.simulation.sensor import block_average_downsample
 from seeingbench.simulation.telescope import diffraction_gaussian_sigma_px, telescope_metadata
 from seeingbench.simulation.warp import (
@@ -57,7 +62,7 @@ class SeeingModel:
             raise ValueError("input image must already be in the configured output range")
 
         latent = block_average_downsample(image, config.sensor_downsample_factor)
-        telescope_blurred = gaussian_blur(image, config.telescope_psf_sigma_px)
+        telescope_blurred = _apply_telescope_psf(image, config)
         warp_fields, components = generate_multiscale_warp_fields(
             shape=image.shape,
             frame_count=config.frame_count,
@@ -112,17 +117,7 @@ class SeeingModel:
             warp_fields=sensor_warp_fields,
             warp_components=sensor_components,
             psf_information={
-                "telescope_psf": {
-                    "model": "gaussian",
-                    "sigma_px": config.telescope_psf_sigma_px,
-                    "diffraction_gaussian_sigma_px": diffraction_gaussian_sigma_px(
-                        config.telescope
-                    ),
-                    "sigma_to_diffraction_gaussian_ratio": (
-                        config.telescope_psf_sigma_px
-                        / diffraction_gaussian_sigma_px(config.telescope)
-                    ),
-                },
+                "telescope_psf": _telescope_psf_metadata(config),
                 "seeing_blur": {
                     "model": "gaussian",
                     "sigma_px": config.seeing_blur_sigma_px,
@@ -155,6 +150,34 @@ class SeeingModel:
                 ),
             },
         )
+
+
+def _apply_telescope_psf(image: FloatArray, config: SeeingSimulationConfig) -> FloatArray:
+    if config.telescope_psf_model == "gaussian":
+        return gaussian_blur(image, config.telescope_psf_sigma_px)
+    if config.telescope_psf_model == "airy":
+        return airy_blur(image, config.telescope)
+    raise ValueError("telescope_psf_model must be 'gaussian' or 'airy'")
+
+
+def _telescope_psf_metadata(config: SeeingSimulationConfig) -> dict[str, Any]:
+    if config.telescope_psf_model == "gaussian":
+        diffraction_sigma = diffraction_gaussian_sigma_px(config.telescope)
+        return {
+            "model": "gaussian",
+            "sigma_px": config.telescope_psf_sigma_px,
+            "diffraction_gaussian_sigma_px": diffraction_sigma,
+            "sigma_to_diffraction_gaussian_ratio": config.telescope_psf_sigma_px
+            / diffraction_sigma,
+        }
+    if config.telescope_psf_model == "airy":
+        return {
+            "model": "airy",
+            "first_zero_radius_px": airy_first_zero_radius_px(config.telescope),
+            "central_obstruction_ratio": config.telescope.central_obstruction_ratio,
+            "diffraction_gaussian_sigma_px": diffraction_gaussian_sigma_px(config.telescope),
+        }
+    raise ValueError("telescope_psf_model must be 'gaussian' or 'airy'")
 
 
 def _generate_global_motion_fields(

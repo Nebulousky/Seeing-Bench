@@ -280,6 +280,9 @@ def _build_parser() -> argparse.ArgumentParser:
     telescope_reference.add_argument("--apply-illumination", action="store_true")
     telescope_reference.add_argument("--apply-earth-view-projection", action="store_true")
     telescope_reference.add_argument("--terrain-role", default="terrain")
+    telescope_reference.add_argument(
+        "--psf-model", choices=("gaussian", "airy"), default="gaussian"
+    )
     telescope_reference.set_defaults(func=_render_telescope_reference)
 
     geometry = subparsers.add_parser("geometry", help="geometry readiness utilities")
@@ -610,6 +613,7 @@ def _render_telescope_reference(args: argparse.Namespace) -> int:
         apply_illumination=args.apply_illumination,
         apply_earth_view_projection=args.apply_earth_view_projection,
         terrain_role=args.terrain_role,
+        psf_model=args.psf_model,
     )
     sys.stdout.write(f"{json.dumps(report, indent=2)}\n")
     return 0 if report["reference_count"] > 0 else 1

@@ -79,6 +79,7 @@ class SeeingSimulationConfig:
         )
     )
     telescope: TelescopeConfig = field(default_factory=TelescopeConfig)
+    telescope_psf_model: str = "gaussian"
     telescope_psf_sigma_px: float = 1.656
     seeing_blur_sigma_px: float = 2.0
     spatial_blur_variation_sigma_px: float = 0.0
@@ -99,6 +100,7 @@ class SeeingSimulationConfig:
             "temporal_correlation",
             "warp_scales",
             "telescope",
+            "telescope_psf_model",
             "telescope_psf_sigma_px",
             "seeing_blur_sigma_px",
             "spatial_blur_variation_sigma_px",
@@ -131,6 +133,7 @@ class SeeingSimulationConfig:
             temporal_correlation=float(data.get("temporal_correlation", cls.temporal_correlation)),
             warp_scales=warp_scales,
             telescope=TelescopeConfig(**telescope_data),
+            telescope_psf_model=str(data.get("telescope_psf_model", cls.telescope_psf_model)),
             telescope_psf_sigma_px=float(
                 data.get("telescope_psf_sigma_px", cls.telescope_psf_sigma_px)
             ),
@@ -162,6 +165,8 @@ class SeeingSimulationConfig:
             raise ValueError("temporal_correlation must be in [0, 1)")
         if self.telescope_psf_sigma_px < 0:
             raise ValueError("telescope_psf_sigma_px must be non-negative")
+        if self.telescope_psf_model not in {"gaussian", "airy"}:
+            raise ValueError("telescope_psf_model must be 'gaussian' or 'airy'")
         if self.seeing_blur_sigma_px < 0:
             raise ValueError("seeing_blur_sigma_px must be non-negative")
         if self.spatial_blur_variation_sigma_px < 0:

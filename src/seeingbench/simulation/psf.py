@@ -8,9 +8,12 @@ from typing import cast
 import numpy as np
 from numpy.typing import NDArray
 
+from seeingbench.simulation.config import TelescopeConfig
+from seeingbench.simulation.telescope import diffraction_limit_arcsec, plate_scale_arcsec_per_px
 from seeingbench.simulation.warp import validate_grayscale_image
 
 FloatArray = NDArray[np.float64]
+J1_FIRST_ZERO = 3.8317059702075125
 
 
 def gaussian_kernel1d(sigma_px: float, truncate: float = 4.0) -> FloatArray:
@@ -42,6 +45,58 @@ def gaussian_blur(image: FloatArray, sigma_px: float) -> FloatArray:
 
     horizontal = _convolve_axis_reflect(image, kernel, axis=1)
     return _convolve_axis_reflect(horizontal, kernel, axis=0)
+
+
+def airy_first_zero_radius_px(config: TelescopeConfig) -> float:
+    """Return the Rayleigh/Airy first-zero radius in sensor pixels."""
+
+    return diffraction_limit_arcsec(config) / plate_scale_arcsec_per_px(config)
+
+
+def airy_kernel2d(
+    first_zero_radius_px: float,
+    *,
+    central_obstruction_ratio: float = 0.0,
+    truncate: float = 8.0,
+) -> FloatArray:
+    """Return a unit-sum Airy diffraction kernel sampled on the image grid.
+
+    ``first_zero_radius_px`` is the unobstructed Rayleigh radius. A non-zero central
+    obstruction uses the standard annular-aperture amplitude model.
+    """
+
+    first_zero_radius_px = float(first_zero_radius_px)
+    central_obstruction_ratio = float(central_obstruction_ratio)
+    truncate = float(truncate)
+    if first_zero_radius_px <= 0.0:
+        raise ValueError("first_zero_radius_px must be positive")
+    if not 0.0 <= central_obstruction_ratio < 1.0:
+        raise ValueError("central_obstruction_ratio must be in [0, 1)")
+    if truncate <= 0.0:
+        raise ValueError("truncate must be positive")
+
+    radius = max(1, math.ceil(truncate * first_zero_radius_px))
+    y, x = np.mgrid[-radius : radius + 1, -radius : radius + 1].astype(np.float64)
+    rho = np.hypot(x, y)
+    argument = J1_FIRST_ZERO * rho / first_zero_radius_px
+    amplitude = _annular_airy_amplitude(argument, central_obstruction_ratio)
+    kernel = amplitude * amplitude
+    kernel_sum = float(np.sum(kernel))
+    if kernel_sum <= 0.0:
+        raise ValueError("Airy kernel underflowed to zero")
+    return (kernel / kernel_sum).astype(np.float64, copy=False)
+
+
+def airy_blur(image: FloatArray, config: TelescopeConfig, *, truncate: float = 8.0) -> FloatArray:
+    """Blur a 2-D image with the diffraction PSF implied by a telescope config."""
+
+    validate_grayscale_image(image)
+    kernel = airy_kernel2d(
+        airy_first_zero_radius_px(config),
+        central_obstruction_ratio=config.central_obstruction_ratio,
+        truncate=truncate,
+    )
+    return _convolve2d_reflect(image, kernel)
 
 
 def spatially_varying_gaussian_blur(
@@ -109,6 +164,47 @@ def _convolve_axis_reflect(image: FloatArray, kernel: FloatArray, axis: int) -> 
     for row in range(image.shape[0]):
         out[row, :] = np.sum(padded[row : row + kernel.size, :] * kernel[:, None], axis=0)
     return out
+
+
+def _convolve2d_reflect(image: FloatArray, kernel: FloatArray) -> FloatArray:
+    pad_y = kernel.shape[0] // 2
+    pad_x = kernel.shape[1] // 2
+    padded = np.pad(image, ((pad_y, pad_y), (pad_x, pad_x)), mode="reflect")
+    out = np.empty_like(image)
+    for row in range(image.shape[0]):
+        for col in range(image.shape[1]):
+            window = padded[row : row + kernel.shape[0], col : col + kernel.shape[1]]
+            out[row, col] = float(np.sum(window * kernel))
+    return out
+
+
+def _annular_airy_amplitude(argument: FloatArray, obstruction: float) -> FloatArray:
+    amplitude = np.ones_like(argument)
+    nonzero = argument != 0.0
+    x = argument[nonzero]
+    if obstruction == 0.0:
+        amplitude[nonzero] = 2.0 * _bessel_j1(x) / x
+        return amplitude
+
+    denominator = x * (1.0 - obstruction * obstruction)
+    amplitude[nonzero] = 2.0 * (_bessel_j1(x) - obstruction * _bessel_j1(obstruction * x))
+    amplitude[nonzero] /= denominator
+    return amplitude
+
+
+def _bessel_j1(values: FloatArray) -> FloatArray:
+    """Numerically evaluate J1 with fixed Gauss-Legendre quadrature.
+
+    The integral representation keeps this dependency-free while remaining accurate enough
+    for deterministic PSF kernels.
+    """
+
+    nodes, weights = np.polynomial.legendre.leggauss(64)
+    theta = 0.5 * math.pi * (nodes + 1.0)
+    theta_weights = 0.5 * weights
+    integrand = np.cos(theta[None, :] - values.reshape(-1, 1) * np.sin(theta)[None, :])
+    result = integrand @ theta_weights
+    return (result.reshape(values.shape)).astype(np.float64, copy=False)
 
 
 def _smooth_weight_field(

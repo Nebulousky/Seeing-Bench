@@ -58,8 +58,9 @@ fields are `numpy.float64`. Conversion to external storage formats happens only 
 ## Status
 
 Implemented today: offline synthetic Phase 1 scaffolding with JSON simulation configs,
-smooth multiscale warp fields, Gaussian PSF/noise, approximate spatially varying seeing
-blur, explicit integer sensor-grid downsampling, explicit sensor saturation metadata,
+smooth multiscale warp fields, Gaussian/Airy telescope PSF, Gaussian noise, approximate
+spatially varying seeing blur, explicit integer sensor-grid downsampling, explicit sensor
+saturation metadata,
 TIFF/NumPy benchmark export, baseline mean-stack adapter, global and local block translation
 stack adapters, image/structure/frequency/false-detail/warp metrics, diffraction-relative
 frequency interpretation, standalone-reference evaluation, Markdown reports, comparison
@@ -71,8 +72,9 @@ basic map-window reprojection into ROI reference grids, guarded product download
 explicit byte budgets, and PDS label provenance carried through readiness, extraction, and
 reference reports. Phase 3 has real-observation metadata parsing, SPICE readiness and
 observation-geometry reports, a telescope-diffraction matching renderer for local ROI
-references, optional local orthographic projection, and optional simple terrain-derived
-Lambertian illumination. Full-disk spherical rendering, high-fidelity lunar photometry, and
+references with Gaussian or Airy PSFs, optional local orthographic projection, and optional
+simple terrain-derived Lambertian illumination. Full-disk spherical rendering,
+high-fidelity lunar photometry, and
 real third-party application automation still require local datasets/tools and further
 implementation.
 

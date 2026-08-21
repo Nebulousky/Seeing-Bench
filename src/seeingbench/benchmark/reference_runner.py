@@ -431,6 +431,7 @@ def _reference_generation(metadata: dict[str, Any], reference_path: Path) -> dic
             "source",
             "output",
             "method",
+            "psf_model",
             "reference_resolution_m_per_px",
             "earth_moon_distance_m",
             "diffraction_sigma_reference_px",

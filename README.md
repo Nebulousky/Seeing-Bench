@@ -12,7 +12,7 @@ unsupported fine detail.
 ## Current Capabilities
 
 - Smooth, temporally correlated multiscale displacement fields plus global image motion.
-- Gaussian telescope PSF, seeing blur, Gaussian noise, and explicit sensor saturation.
+- Gaussian or Airy telescope PSF, seeing blur, Gaussian noise, and explicit sensor saturation.
 - Retained latent truth, dense warp truth, and per-scale warp components.
 - Filesystem benchmark contract for external tools:
   - `input/frame_000001.tif`, `input/frame_000002.tif`, ...
@@ -240,6 +240,7 @@ seeingbench render telescope-reference \
   --spice-cache-root . \
   --apply-earth-view-projection \
   --apply-illumination \
+  --psf-model airy \
   --terrain-role terrain \
   --role reflectance
 ```

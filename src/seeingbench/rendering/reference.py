@@ -20,7 +20,7 @@ from seeingbench.rendering.projection import (
     apply_local_orthographic_projection,
     local_orthographic_projection_matrix,
 )
-from seeingbench.simulation.psf import gaussian_blur
+from seeingbench.simulation.psf import airy_blur, gaussian_blur
 from seeingbench.simulation.telescope import (
     diffraction_gaussian_sigma_px,
     lunar_resolution_m_per_px,
@@ -36,6 +36,7 @@ def render_telescope_matched_reference(
     apply_illumination: bool = False,
     apply_earth_view_projection: bool = False,
     terrain_role: str = "terrain",
+    psf_model: str = "gaussian",
 ) -> dict[str, Any]:
     """Blur a local surface reference to the observation telescope's diffraction limit."""
 
@@ -103,7 +104,7 @@ def render_telescope_matched_reference(
         reference_resolution_m_per_px,
         distance_m,
     )
-    matched = gaussian_blur(source_for_matching, sigma_px)
+    matched = _apply_reference_psf(source_for_matching, telescope, sigma_px, psf_model)
     destination = output_root / f"telescope-matched-{_safe_name(str(source_reference['role']))}.npy"
     np.save(destination, matched)
 
@@ -120,7 +121,8 @@ def render_telescope_matched_reference(
                 "output": str(destination),
                 "shape": list(matched.shape),
                 "dtype": str(matched.dtype),
-                "method": "gaussian diffraction matching on local ROI map grid",
+                "method": f"{psf_model} diffraction matching on local ROI map grid",
+                "psf_model": psf_model,
                 "label_provenance": source_reference.get("label_provenance", {}),
                 "label_summary": source_reference.get("label_summary", {}),
                 "reference_resolution_m_per_px": reference_resolution_m_per_px,
@@ -144,6 +146,19 @@ def render_telescope_matched_reference(
     }
     _write_report(output_root, report)
     return report
+
+
+def _apply_reference_psf(
+    source: np.ndarray,
+    telescope: Any,
+    sigma_px: float,
+    psf_model: str,
+) -> np.ndarray:
+    if psf_model == "gaussian":
+        return gaussian_blur(source, sigma_px)
+    if psf_model == "airy":
+        return airy_blur(source, telescope)
+    raise ValueError("psf_model must be 'gaussian' or 'airy'")
 
 
 def telescope_diffraction_sigma_in_reference_px(
