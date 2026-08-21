@@ -197,6 +197,16 @@ seeingbench render telescope-reference \
   --role reflectance
 ```
 
+Inspect whether local SPICE metadata and explicitly listed kernels are ready for geometry:
+
+```bash
+seeingbench geometry spice-readiness \
+  --observation configs/observations/example-lunar-observation.json \
+  --manifest manifests/lro_spice_archive.json \
+  --cache-root . \
+  --output outputs/spice-readiness.json
+```
+
 Inspect whether a documented real-data ROI is locally ready without downloading bulk data:
 
 ```bash

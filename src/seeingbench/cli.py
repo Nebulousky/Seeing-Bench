@@ -31,6 +31,7 @@ from seeingbench.datasets.manifests import (
 )
 from seeingbench.datasets.readiness import build_roi_download_plan, build_roi_readiness_report
 from seeingbench.datasets.reproject import reproject_extracted_roi_products
+from seeingbench.geometry.spice import build_spice_readiness_report, write_spice_readiness_report
 from seeingbench.io.images import load_grayscale_image
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
@@ -189,6 +190,19 @@ def _build_parser() -> argparse.ArgumentParser:
     telescope_reference.add_argument("--output-root", required=True, type=Path)
     telescope_reference.add_argument("--role")
     telescope_reference.set_defaults(func=_render_telescope_reference)
+
+    geometry = subparsers.add_parser("geometry", help="geometry readiness utilities")
+    geometry_subparsers = geometry.add_subparsers(required=True)
+
+    spice_readiness = geometry_subparsers.add_parser(
+        "spice-readiness",
+        help="inspect local SPICE kernel readiness for an observation",
+    )
+    spice_readiness.add_argument("--observation", required=True, type=Path)
+    spice_readiness.add_argument("--manifest", required=True, type=Path)
+    spice_readiness.add_argument("--cache-root", type=Path, default=Path("."))
+    spice_readiness.add_argument("--output", type=Path)
+    spice_readiness.set_defaults(func=_geometry_spice_readiness)
 
     datasets = subparsers.add_parser("datasets", help="dataset manifest utilities")
     dataset_subparsers = datasets.add_subparsers(required=True)
@@ -453,6 +467,16 @@ def _render_telescope_reference(args: argparse.Namespace) -> int:
     )
     sys.stdout.write(f"{json.dumps(report, indent=2)}\n")
     return 0 if report["reference_count"] > 0 else 1
+
+
+def _geometry_spice_readiness(args: argparse.Namespace) -> int:
+    report = build_spice_readiness_report(args.observation, args.manifest, args.cache_root)
+    payload = json.dumps(report, indent=2)
+    if args.output is None:
+        sys.stdout.write(f"{payload}\n")
+    else:
+        write_spice_readiness_report(report, args.output)
+    return 0 if report["ready"] else 1
 
 
 def _datasets_validate_manifest(args: argparse.Namespace) -> int:

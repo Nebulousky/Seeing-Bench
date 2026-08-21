@@ -19,5 +19,8 @@
   "filter": {
     "name": "green",
     "effective_wavelength_nm": 550.0
+  },
+  "spice": {
+    "kernels": []
   }
 }

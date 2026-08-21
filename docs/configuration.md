@@ -212,3 +212,10 @@ The `render telescope-reference` command accepts the real-observation metadata s
 position, timestamp, camera dimensions, and Earth-Moon distance are preserved as metadata,
 but the command currently reports limitations rather than pretending to solve SPICE-backed
 orientation, libration, illumination, or Earth-view projection.
+
+`geometry spice-readiness` checks the SPICE side of that contract. Observation metadata must
+include `utc_start`, `observer.latitude`, `observer.longitude`, `observer.altitude_m`, and
+`spice.kernels`, where each kernel path is relative to the selected `--cache-root`. The
+command parses a local NAIF `checksum.tab` when present, verifies local kernel MD5 values,
+reports kernel type counts, and reports whether the optional `spiceypy` package is
+available. It does not compute geometry.
