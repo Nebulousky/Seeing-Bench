@@ -325,6 +325,9 @@ def _limitation_uncertainty(limitation: str) -> dict[str, Any]:
         "simple_lambertian_illumination_model": (
             "illumination uses a simple Lambertian terrain model"
         ),
+        "simple_lommel_seeliger_illumination_model": (
+            "illumination uses a simple Lommel-Seeliger terrain model"
+        ),
         "default_earth_moon_distance": "diffraction matching used a default Earth-Moon distance",
     }
     if limitation in high:

@@ -240,6 +240,7 @@ seeingbench render telescope-reference \
   --spice-cache-root . \
   --apply-earth-view-projection \
   --apply-illumination \
+  --illumination-model lommel_seeliger \
   --psf-model airy \
   --terrain-role terrain \
   --role reflectance

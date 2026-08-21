@@ -73,8 +73,8 @@ explicit byte budgets, and PDS label provenance carried through readiness, extra
 reference reports. Phase 3 has real-observation metadata parsing, SPICE readiness and
 observation-geometry reports, a telescope-diffraction matching renderer for local ROI
 references with Gaussian or Airy PSFs, optional local orthographic projection, and optional
-simple terrain-derived Lambertian illumination. Full-disk spherical rendering,
-high-fidelity lunar photometry, and
+simple terrain-derived Lambertian or Lommel-Seeliger illumination. Full-disk spherical
+rendering, high-fidelity lunar photometry, and
 real third-party application automation still require local datasets/tools and further
 implementation.
 

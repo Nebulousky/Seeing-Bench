@@ -180,6 +180,50 @@ def test_render_telescope_matched_reference_can_apply_terrain_illumination(
     assert "no_illumination_model" not in report["limitations"]
 
 
+def test_render_telescope_matched_reference_can_apply_lommel_seeliger_illumination(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "seeingbench.rendering.reference.build_spice_observation_geometry_report",
+        lambda observation_path, cache_root: _spice_geometry_report(
+            sub_observer_lon=60.0,
+            sub_solar_lon=0.0,
+        ),
+    )
+    reflectance = np.ones((33, 33), dtype=np.float64)
+    terrain = np.zeros((33, 33), dtype=np.float64)
+    reflectance_path = tmp_path / "reflectance.npy"
+    terrain_path = tmp_path / "terrain.npy"
+    np.save(reflectance_path, reflectance)
+    np.save(terrain_path, terrain)
+    surface_report = _write_surface_report_with_terrain(
+        tmp_path,
+        reflectance_path,
+        terrain_path,
+    )
+    observation = _write_observation(tmp_path)
+
+    report = render_telescope_matched_reference(
+        surface_report,
+        observation,
+        tmp_path / "telescope",
+        role="reflectance",
+        spice_cache_root=tmp_path,
+        apply_illumination=True,
+        illumination_model="lommel_seeliger",
+    )
+
+    output = np.load(Path(report["references"][0]["output"]))
+    illumination = report["references"][0]["illumination"]
+    assert illumination["applied"]
+    assert illumination["model"] == "lommel_seeliger"
+    assert illumination["shading_mean"] == pytest.approx(4.0 / 3.0)
+    assert float(np.mean(output)) == pytest.approx(4.0 / 3.0)
+    assert "simple_lommel_seeliger_illumination_model" in report["limitations"]
+    assert "simple_lambertian_illumination_model" not in report["limitations"]
+
+
 def test_render_telescope_matched_reference_can_apply_earth_view_projection(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -399,7 +443,10 @@ def _write_spice_observation(tmp_path: Path) -> Path:
     return observation
 
 
-def _spice_geometry_report(sub_observer_lon: float) -> dict[str, object]:
+def _spice_geometry_report(
+    sub_observer_lon: float,
+    sub_solar_lon: float = 0.0,
+) -> dict[str, object]:
     geometry = {
         "utc_start": "2026-08-15T00:46:34Z",
         "reference_frame": "J2000",
@@ -407,7 +454,7 @@ def _spice_geometry_report(sub_observer_lon: float) -> dict[str, object]:
         "sub_observer_latitude_deg": 0.0,
         "sub_observer_longitude_deg_east": sub_observer_lon,
         "sub_solar_latitude_deg": 0.0,
-        "sub_solar_longitude_deg_east": 0.0,
+        "sub_solar_longitude_deg_east": sub_solar_lon,
     }
     return {
         "ready": True,

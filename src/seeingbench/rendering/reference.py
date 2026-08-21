@@ -15,7 +15,7 @@ from seeingbench.observations import (
     load_observation_metadata,
     telescope_config_from_observation,
 )
-from seeingbench.rendering.illumination import lambertian_shading_from_dem
+from seeingbench.rendering.illumination import lunar_shading_from_dem
 from seeingbench.rendering.projection import (
     apply_local_orthographic_projection,
     local_orthographic_projection_matrix,
@@ -37,6 +37,7 @@ def render_telescope_matched_reference(
     apply_earth_view_projection: bool = False,
     terrain_role: str = "terrain",
     psf_model: str = "gaussian",
+    illumination_model: str = "lambertian",
 ) -> dict[str, Any]:
     """Blur a local surface reference to the observation telescope's diffraction limit."""
 
@@ -87,6 +88,7 @@ def render_telescope_matched_reference(
         spice_geometry_report,
         reference_resolution_m_per_px,
         apply_illumination,
+        illumination_model,
     )
     source_for_matching = source
     if illumination["applied"]:
@@ -218,9 +220,12 @@ def _illumination_report(
     spice_geometry_report: dict[str, Any] | None,
     reference_resolution_m_per_px: float,
     apply_illumination: bool,
+    illumination_model: str,
 ) -> dict[str, Any]:
     if not apply_illumination:
         return {"applied": False, "reason": "not_requested"}
+    if illumination_model not in {"lambertian", "lommel_seeliger"}:
+        raise ValueError("illumination_model must be 'lambertian' or 'lommel_seeliger'")
     geometry = None if spice_geometry_report is None else spice_geometry_report.get("geometry")
     if not isinstance(geometry, dict):
         return {"applied": False, "reason": "missing_spice_geometry"}
@@ -238,17 +243,21 @@ def _illumination_report(
     roi = surface_report.get("roi", {})
     center_latitude_deg = float(roi.get("center_lat_deg", 0.0))
     center_longitude_deg = float(roi.get("center_lon_deg", 0.0))
-    shading = lambertian_shading_from_dem(
+    shading = lunar_shading_from_dem(
         terrain,
         reference_resolution_m_per_px,
         center_latitude_deg=center_latitude_deg,
         center_longitude_deg_east=center_longitude_deg,
         sub_solar_latitude_deg=float(geometry["sub_solar_latitude_deg"]),
         sub_solar_longitude_deg_east=float(geometry["sub_solar_longitude_deg_east"]),
+        sub_observer_latitude_deg=float(geometry["sub_observer_latitude_deg"]),
+        sub_observer_longitude_deg_east=float(geometry["sub_observer_longitude_deg_east"]),
+        model=illumination_model,
     )
     return {
         "applied": True,
-        "method": "local DEM Lambertian shading",
+        "method": f"local DEM {illumination_model} shading",
+        "model": illumination_model,
         "reflectance_role": source_reference["role"],
         "terrain_role": terrain_reference["role"],
         "terrain_source": terrain_reference["output"],
@@ -307,11 +316,7 @@ def _limitations(
     projection: dict[str, Any] | None,
 ) -> list[str]:
     illumination_applied = illumination is not None and bool(illumination.get("applied"))
-    illumination_limitations = (
-        ["simple_lambertian_illumination_model"]
-        if illumination_applied
-        else ["no_illumination_model"]
-    )
+    illumination_limitations = _illumination_limitations(illumination, illumination_applied)
     projection_applied = projection is not None and bool(projection.get("applied"))
     projection_limitations = (
         ["local_linear_orthographic_projection"]
@@ -332,6 +337,17 @@ def _limitations(
         *illumination_limitations,
         *distance_limitations,
     ]
+
+
+def _illumination_limitations(
+    illumination: dict[str, Any] | None,
+    illumination_applied: bool,
+) -> list[str]:
+    if not illumination_applied or illumination is None:
+        return ["no_illumination_model"]
+    if illumination.get("model") == "lommel_seeliger":
+        return ["simple_lommel_seeliger_illumination_model"]
+    return ["simple_lambertian_illumination_model"]
 
 
 def _write_report(output_root: Path, report: dict[str, Any]) -> None:

@@ -303,6 +303,9 @@ renderer and is labelled `local_linear_orthographic_projection` in reports.
 Lambertian shading map derived from the `--terrain-role` DEM reference and SPICE sub-solar
 metadata. This is an explicit first-order structural aid, not a full lunar photometric
 model; reports label it `simple_lambertian_illumination_model`.
+`--illumination-model lommel_seeliger` switches that first-order terrain shading to a
+simple Lommel-Seeliger lunar photometric approximation using both sub-solar and
+sub-observer geometry; reports label it `simple_lommel_seeliger_illumination_model`.
 `--psf-model airy` uses the physical Airy/annular-aperture PSF for telescope matching;
 the default `gaussian` keeps the previous Gaussian diffraction approximation.
 Telescope-reference rows preserve `label_provenance` and `label_summary` copied from the
