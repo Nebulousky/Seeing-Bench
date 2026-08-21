@@ -87,6 +87,7 @@ def test_cli_generates_baseline_and_evaluates_case(tmp_path: Path) -> None:
     rendered_report = report_path.read_text(encoding="utf-8")
     assert "SeeingBench Report: mean_stack" in rendered_report
     assert "Reconstruction runtime" in rendered_report
+    assert "Git commit" in rendered_report
 
     comparison_path = tmp_path / "comparison.md"
     assert (

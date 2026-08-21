@@ -25,6 +25,9 @@ def render_markdown_report(report: dict[str, Any]) -> str:
     metadata = report.get("metadata", {})
     case_metadata = metadata.get("case_metadata", {})
     config = case_metadata.get("config", {})
+    provenance = metadata.get("provenance", {})
+    git = provenance.get("git", {}) if isinstance(provenance, dict) else {}
+    reference_limitations = metadata.get("reference_limitations", [])
     lines = [
         f"# SeeingBench Report: {report['algorithm']}",
         "",
@@ -36,6 +39,8 @@ def render_markdown_report(report: dict[str, Any]) -> str:
         f"- Evaluation runtime: {_format_float(metadata.get('evaluation_runtime_s'))} s",
         f"- Frame count: `{config.get('frame_count', 'unknown')}`",
         f"- Random seed: `{config.get('random_seed', 'unknown')}`",
+        f"- Git commit: `{git.get('commit', 'unknown')}`",
+        f"- Git dirty: `{git.get('dirty', 'unknown')}`",
         "",
         "## Image Similarity",
         "",
@@ -80,6 +85,13 @@ def render_markdown_report(report: dict[str, Any]) -> str:
         _render_warp(report.get("warp_recovery")),
         "",
     ]
+    if reference_limitations:
+        lines += [
+            "## Reference Limitations",
+            "",
+            *[f"- `{limitation}`" for limitation in reference_limitations],
+            "",
+        ]
     diagnostics = report.get("diagnostics")
     if diagnostics:
         lines += [

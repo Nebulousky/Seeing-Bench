@@ -137,6 +137,8 @@ best structural recovery, least unsupported fine detail, and fastest reconstruct
 Evaluation reports and study summaries include a `provenance` object with SeeingBench,
 Python, NumPy, platform, process, Git commit, branch, origin URL, dirty-state, and short
 status information so runs can be tied back to the exact source tree.
+Markdown reports render the Git commit/dirty state and any standalone-reference
+limitations copied from `--reference-metadata`.
 
 `seeingbench run-command` executes an explicit external command and requires it to write
 `reconstruction.tif` into the declared result directory. Command arguments may use `{case}`
