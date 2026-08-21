@@ -19,6 +19,8 @@ def test_compare_ranks_higher_recovery_and_lower_false_detail(tmp_path: Path) ->
     assert comparison["rows"][0]["reference_provenance"]["logical_identifier"] == (
         "urn:nasa:pds:strong"
     )
+    assert comparison["rows"][0]["reference_uncertainty"]["risk_level"] == "medium"
+    assert comparison["reference_uncertainty_levels"] == ["medium"]
     assert comparison["leaders"]["best_score"]["algorithm"] == "strong"
     assert comparison["leaders"]["best_frequency_recovery"]["algorithm"] == "strong"
     assert comparison["leaders"]["least_false_detail"]["algorithm"] == "strong"
@@ -33,6 +35,7 @@ def test_comparison_markdown_contains_ranked_table(tmp_path: Path) -> None:
     assert "# SeeingBench Comparison" in markdown
     assert "## Direct Answers" in markdown
     assert "## Reference Limitations" in markdown
+    assert "## Reference Uncertainty" in markdown
     assert "`local_linear_orthographic_projection`" in markdown
     assert "| 1 | `a` |" in markdown
     assert "Recon Runtime" in markdown
@@ -118,6 +121,16 @@ def _write_report(
                     "reference_limitations": ["local_linear_orthographic_projection"],
                     "reference_provenance": {
                         "logical_identifier": f"urn:nasa:pds:{algorithm}",
+                    },
+                    "reference_uncertainty": {
+                        "risk_level": "medium",
+                        "factors": [
+                            {
+                                "source": "local_linear_orthographic_projection",
+                                "level": "medium",
+                                "description": "local projection approximation",
+                            }
+                        ],
                     },
                     "provenance": {
                         "git": {

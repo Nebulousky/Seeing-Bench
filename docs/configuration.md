@@ -138,9 +138,10 @@ Evaluation reports and study summaries include a `provenance` object with Seeing
 Python, NumPy, platform, process, Git commit, branch, origin URL, dirty-state, and short
 status information so runs can be tied back to the exact source tree.
 Markdown reports render the Git commit/dirty state and any standalone-reference
-limitations copied from `--reference-metadata`.
-Comparison JSON carries the same per-row Git and reference-limitation fields, and
-comparison Markdown renders the union of reference limitations before ranking results.
+limitations and uncertainty flags copied or derived from `--reference-metadata`.
+Comparison JSON carries the same per-row Git, reference-limitation, and
+reference-uncertainty fields, and comparison Markdown renders the union of reference
+limitations and uncertainty levels before ranking results.
 
 `seeingbench run-command` executes an explicit external command and requires it to write
 `reconstruction.tif` into the declared result directory. Command arguments may use `{case}`
@@ -151,8 +152,11 @@ runtime in `metadata.json`; evaluation remains a separate step.
 image file) with a reconstruction image. `--reference-metadata` may point at the
 corresponding reference-generation JSON report; its limitations and provenance are copied
 into the metrics metadata as `reference_limitations`, `reference_provenance`, and
-`reference_generation`. `--register-translation` permits only a global integer
-translation estimated by phase correlation before scoring. Repeated
+`reference_generation`. The evaluator also writes `reference_uncertainty`, a categorical
+set of quality flags derived from reference limitations, provenance presence, geometric
+registration, and photometric normalization metadata. These flags expose known validation
+limits but are not calibrated statistical confidence intervals. `--register-translation`
+permits only a global integer translation estimated by phase correlation before scoring. Repeated
 `--registration-rotation-deg` and `--registration-scale` values enable a constrained global
 similarity grid search around the image centre, scored by reference MSE. These controls do
 not locally deform or otherwise bend the reference to hide reconstruction errors.

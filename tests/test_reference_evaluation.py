@@ -111,6 +111,30 @@ def test_reference_evaluation_linear_photometric_normalization_fits_known_transf
     assert photometry["mse_after"] < photometry["mse_before"]
 
 
+def test_reference_evaluation_flags_missing_reference_metadata_as_high_uncertainty(
+    tmp_path: Path,
+) -> None:
+    reference = crater_field((32, 32), seed=46)
+    reference_path = tmp_path / "reference.npy"
+    reconstruction_path = tmp_path / "reconstruction.npy"
+    np.save(reference_path, reference)
+    np.save(reconstruction_path, reference.copy())
+
+    report = evaluate_reference_reconstruction(
+        reference_path,
+        reconstruction_path,
+        algorithm="perfect",
+        frequency_bins=6,
+    )
+
+    uncertainty = report.metadata["reference_uncertainty"]
+    sources = {factor["source"] for factor in uncertainty["factors"]}
+    assert uncertainty["assessment"] == "categorical_reference_uncertainty"
+    assert uncertainty["risk_level"] == "high"
+    assert "reference_metadata_missing" in sources
+    assert "reference_provenance_missing" in sources
+
+
 def test_reference_evaluation_uses_reconstruction_metadata_runtime(tmp_path: Path) -> None:
     reference = crater_field((32, 32), seed=18)
     reference_path = tmp_path / "reference.npy"
@@ -162,6 +186,10 @@ def test_reference_evaluation_uses_reconstruction_metadata_runtime(tmp_path: Pat
     assert report.metadata["reference_generation"]["method"] == (
         "gaussian diffraction matching on local ROI map grid"
     )
+    uncertainty = report.metadata["reference_uncertainty"]
+    sources = {factor["source"] for factor in uncertainty["factors"]}
+    assert uncertainty["risk_level"] == "medium"
+    assert "local_linear_orthographic_projection" in sources
     assert report.metadata["provenance"]["git"]["commit"]
     assert isinstance(report.metadata["provenance"]["git"]["dirty"], bool)
 

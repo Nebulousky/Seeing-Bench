@@ -25,6 +25,8 @@ unsupported fine detail.
 - Synthetic-only oracle aligned-stack adapter for upper-bound validation.
 - Metrics: MSE, PSNR, global SSIM, gradient correlation, radial frequency recovery,
   diffraction-relative recovery, false-detail energy, and optional warp recovery error.
+- Standalone-reference reports carry provenance, limitations, categorical uncertainty
+  flags, registration metadata, and optional photometric normalization metadata.
 - Diagnostic truth/reconstruction/frame exports, residual maps, blink pair, warp magnitude,
   warp summaries, and frequency-recovery CSV output.
 

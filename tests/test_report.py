@@ -32,6 +32,16 @@ def test_markdown_report_renders_core_metrics() -> None:
                     "method": "gaussian diffraction matching on local ROI map grid",
                     "source": "surface.npy",
                 },
+                "reference_uncertainty": {
+                    "risk_level": "medium",
+                    "factors": [
+                        {
+                            "source": "local_linear_orthographic_projection",
+                            "level": "medium",
+                            "description": "local projection approximation",
+                        }
+                    ],
+                },
                 "provenance": {
                     "git": {
                         "commit": "abc123",
@@ -48,5 +58,7 @@ def test_markdown_report_renders_core_metrics() -> None:
     assert "Reference Limitations" in markdown
     assert "`local_linear_orthographic_projection`" in markdown
     assert "Reference Provenance" in markdown
+    assert "Reference Uncertainty" in markdown
+    assert "Risk level: `medium`" in markdown
     assert "urn:nasa:pds:reference" in markdown
     assert "gaussian diffraction matching" in markdown

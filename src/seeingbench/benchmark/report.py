@@ -30,6 +30,7 @@ def render_markdown_report(report: dict[str, Any]) -> str:
     reference_limitations = metadata.get("reference_limitations", [])
     reference_provenance = metadata.get("reference_provenance", {})
     reference_generation = metadata.get("reference_generation", {})
+    reference_uncertainty = metadata.get("reference_uncertainty", {})
     photometry = metadata.get("photometric_normalization", {})
     lines = [
         f"# SeeingBench Report: {report['algorithm']}",
@@ -96,6 +97,18 @@ def render_markdown_report(report: dict[str, Any]) -> str:
             *[f"- `{limitation}`" for limitation in reference_limitations],
             "",
         ]
+    if reference_uncertainty:
+        lines += [
+            "## Reference Uncertainty",
+            "",
+            f"- Risk level: `{_reference_risk_level(reference_uncertainty)}`",
+            *[
+                f"- `{factor.get('level', 'unknown')}` `{factor.get('source', 'unknown')}`: "
+                f"{factor.get('description', '')}"
+                for factor in _reference_uncertainty_factors(reference_uncertainty)
+            ],
+            "",
+        ]
     if reference_provenance or reference_generation:
         lines += [
             "## Reference Provenance",
@@ -154,6 +167,19 @@ def _photometry_summary(value: Any) -> str:
     scale = _format_float(value.get("scale"))
     offset = _format_float(value.get("offset"))
     return f"{method}; scale={scale}; offset={offset}"
+
+
+def _reference_risk_level(value: Any) -> str:
+    if not isinstance(value, dict):
+        return "unknown"
+    return str(value.get("risk_level", "unknown"))
+
+
+def _reference_uncertainty_factors(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, dict):
+        return []
+    factors = value.get("factors", [])
+    return [factor for factor in factors if isinstance(factor, dict)]
 
 
 def _format_diagnostic(value: Any) -> str:

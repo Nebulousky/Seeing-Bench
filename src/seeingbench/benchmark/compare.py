@@ -26,6 +26,7 @@ class ComparisonRow:
     photometric_normalization: dict[str, Any]
     reference_limitations: tuple[str, ...]
     reference_provenance: dict[str, Any]
+    reference_uncertainty: dict[str, Any]
     score: float
 
     def to_dict(self) -> dict[str, Any]:
@@ -44,6 +45,7 @@ class ComparisonRow:
             "photometric_normalization": self.photometric_normalization,
             "reference_limitations": list(self.reference_limitations),
             "reference_provenance": self.reference_provenance,
+            "reference_uncertainty": self.reference_uncertainty,
             "score": self.score,
         }
 
@@ -64,6 +66,13 @@ def compare_metric_files(paths: list[Path]) -> dict[str, Any]:
         "leaders": _leaders(rows),
         "reference_limitations": sorted(
             {limitation for row in rows for limitation in row.reference_limitations}
+        ),
+        "reference_uncertainty_levels": sorted(
+            {
+                str(row.reference_uncertainty["risk_level"])
+                for row in rows
+                if row.reference_uncertainty.get("risk_level") is not None
+            }
         ),
         "rows": ranked_dicts,
     }
@@ -98,6 +107,14 @@ def render_comparison_markdown(comparison: dict[str, Any]) -> str:
             "## Reference Limitations",
             "",
             *[f"- `{limitation}`" for limitation in comparison["reference_limitations"]],
+            "",
+        ]
+    if comparison.get("reference_uncertainty_levels"):
+        lines += [
+            "## Reference Uncertainty",
+            "",
+            "- Risk levels present: "
+            + ", ".join(f"`{level}`" for level in comparison["reference_uncertainty_levels"]),
             "",
         ]
     lines += [
@@ -187,6 +204,7 @@ def _row_from_report(metrics_path: Path) -> ComparisonRow:
         photometric_normalization=_metadata_dict(metadata, "photometric_normalization"),
         reference_limitations=_metadata_str_tuple(metadata, "reference_limitations"),
         reference_provenance=_metadata_dict(metadata, "reference_provenance"),
+        reference_uncertainty=_metadata_dict(metadata, "reference_uncertainty"),
         score=score,
     )
 

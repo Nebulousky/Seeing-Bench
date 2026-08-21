@@ -87,6 +87,17 @@ def evaluate_reference_reconstruction(
         reconstruction_metadata_path,
         "reconstruction metadata",
     )
+    reference_limitations = _metadata_list(reference_metadata, "limitations")
+    reference_provenance = _reference_provenance(reference_metadata, reference_path)
+    reference_generation = _reference_generation(reference_metadata, reference_path)
+    reference_uncertainty = _reference_uncertainty(
+        reference_metadata=reference_metadata,
+        reference_limitations=reference_limitations,
+        reference_provenance=reference_provenance,
+        reference_generation=reference_generation,
+        registration=registration,
+        photometry=photometry,
+    )
     provenance = runtime_provenance()
     elapsed_s = time.perf_counter() - started
     return EvaluationReport(
@@ -110,9 +121,10 @@ def evaluate_reference_reconstruction(
             if reference_metadata_path is None
             else str(reference_metadata_path),
             "reference_metadata": reference_metadata,
-            "reference_limitations": _metadata_list(reference_metadata, "limitations"),
-            "reference_provenance": _reference_provenance(reference_metadata, reference_path),
-            "reference_generation": _reference_generation(reference_metadata, reference_path),
+            "reference_limitations": reference_limitations,
+            "reference_provenance": reference_provenance,
+            "reference_generation": reference_generation,
+            "reference_uncertainty": reference_uncertainty,
             "reconstruction_path": str(reconstruction_path),
             "benchmark_mode": "standalone_reference",
             "registration": registration,
@@ -210,6 +222,161 @@ def _apply_photometric_normalization(
 def _mean_squared_error(reference: np.ndarray, reconstruction: np.ndarray) -> float:
     difference = reference - reconstruction
     return float(np.mean(difference * difference))
+
+
+def _reference_uncertainty(
+    reference_metadata: dict[str, Any],
+    reference_limitations: list[Any],
+    reference_provenance: dict[str, Any],
+    reference_generation: dict[str, Any],
+    registration: dict[str, Any],
+    photometry: dict[str, Any],
+) -> dict[str, Any]:
+    factors: list[dict[str, Any]] = []
+    if not reference_metadata:
+        factors.append(
+            _uncertainty_factor(
+                "reference_metadata_missing",
+                "high",
+                "no reference-generation metadata was supplied to the evaluator",
+            )
+        )
+    if not reference_provenance:
+        factors.append(
+            _uncertainty_factor(
+                "reference_provenance_missing",
+                "medium",
+                "reference source provenance is not present in the metrics metadata",
+            )
+        )
+    if not reference_generation:
+        factors.append(
+            _uncertainty_factor(
+                "reference_generation_missing",
+                "medium",
+                "reference-generation method metadata is not present",
+            )
+        )
+
+    for limitation in reference_limitations:
+        factors.append(_limitation_uncertainty(str(limitation)))
+    if reference_metadata and not reference_limitations:
+        factors.append(
+            _uncertainty_factor(
+                "no_reference_limitations_reported",
+                "low",
+                "reference metadata did not report known limitations",
+            )
+        )
+
+    factors.append(_registration_uncertainty(registration))
+    factors.append(_photometry_uncertainty(photometry))
+    level = _max_uncertainty_level(factors)
+    return {
+        "assessment": "categorical_reference_uncertainty",
+        "risk_level": level,
+        "factor_count": len(factors),
+        "factors": factors,
+        "validation_boundary": (
+            "categorical quality flags are derived only from reference metadata, "
+            "registration settings, and photometric normalization metadata; they are not "
+            "a calibrated statistical confidence interval"
+        ),
+    }
+
+
+def _limitation_uncertainty(limitation: str) -> dict[str, Any]:
+    high = {
+        "not_spice_backed": (
+            "reference uses fallback geometry instead of SPICE-backed observation geometry"
+        ),
+        "no_libration_or_orientation_solution": "lunar orientation and libration are not solved",
+        "not_earth_view_projected": "reference pixels remain in the local map projection",
+    }
+    medium = {
+        "spice_libration_and_illumination_metadata_not_yet_applied_to_pixels": (
+            "SPICE metadata exists, but the renderer still uses an approximate pixel model"
+        ),
+        "local_linear_orthographic_projection": (
+            "Earth-view geometry is represented by a local linear projection"
+        ),
+        "no_illumination_model": "illumination differences are not modelled",
+        "simple_lambertian_illumination_model": (
+            "illumination uses a simple Lambertian terrain model"
+        ),
+        "default_earth_moon_distance": "diffraction matching used a default Earth-Moon distance",
+    }
+    if limitation in high:
+        return _uncertainty_factor(limitation, "high", high[limitation])
+    if limitation in medium:
+        return _uncertainty_factor(limitation, "medium", medium[limitation])
+    return _uncertainty_factor(limitation, "medium", "reference report declares this limitation")
+
+
+def _registration_uncertainty(registration: dict[str, Any]) -> dict[str, Any]:
+    method = str(registration.get("method", "unknown"))
+    if method == "none":
+        return _uncertainty_factor(
+            "geometric_registration_not_applied",
+            "medium",
+            "reference and reconstruction were scored without geometric registration",
+        )
+    if method == "global_similarity_grid_search":
+        return _uncertainty_factor(
+            "global_similarity_registration",
+            "low",
+            "registration was constrained to the declared global similarity candidate grid",
+            candidate_count=registration.get("candidate_count"),
+        )
+    if method == "integer_phase_correlation_translation":
+        return _uncertainty_factor(
+            "global_translation_registration",
+            "low",
+            "registration was constrained to a single global integer translation",
+        )
+    return _uncertainty_factor(
+        f"registration_{method}",
+        "medium",
+        "registration method is not recognised by the uncertainty classifier",
+    )
+
+
+def _photometry_uncertainty(photometry: dict[str, Any]) -> dict[str, Any]:
+    method = str(photometry.get("method", "unknown"))
+    if method == "none":
+        return _uncertainty_factor(
+            "photometric_normalization_not_applied",
+            "low",
+            "metrics use raw reconstruction/reference intensity scaling",
+        )
+    if photometry.get("applied", False):
+        return _uncertainty_factor(
+            "global_linear_photometric_normalization",
+            "low",
+            "one global linear brightness/contrast fit was applied before scoring",
+        )
+    return _uncertainty_factor(
+        "photometric_normalization_skipped",
+        "medium",
+        str(photometry.get("reason", "requested normalization was not applied")),
+    )
+
+
+def _uncertainty_factor(
+    source: str,
+    level: str,
+    description: str,
+    **extra: Any,
+) -> dict[str, Any]:
+    factor = {"source": source, "level": level, "description": description}
+    factor.update({key: value for key, value in extra.items() if value is not None})
+    return factor
+
+
+def _max_uncertainty_level(factors: list[dict[str, Any]]) -> str:
+    levels = {"low": 1, "medium": 2, "high": 3}
+    inverse = {value: key for key, value in levels.items()}
+    return inverse[max(levels.get(str(factor.get("level")), 2) for factor in factors)]
 
 
 def _metadata_list(metadata: dict[str, Any], key: str) -> list[Any]:
