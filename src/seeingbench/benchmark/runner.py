@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import platform
 import time
 from pathlib import Path
 from typing import Any
@@ -12,6 +11,7 @@ import numpy as np
 
 import seeingbench
 from seeingbench.benchmark.case import load_benchmark_case
+from seeingbench.benchmark.provenance import runtime_provenance
 from seeingbench.benchmark.result import EvaluationReport
 from seeingbench.evaluation.false_detail import false_detail_score
 from seeingbench.evaluation.frequency import frequency_recovery_limit, radial_frequency_correlation
@@ -41,6 +41,7 @@ def evaluate_reconstruction(
     diffraction_fraction = _diffraction_frequency_fraction(case.metadata)
     warp_report = _load_warp_report(case.warp_fields, result_dir)
     reconstruction_metadata = _load_result_metadata(result_dir)
+    provenance = runtime_provenance()
     elapsed_s = time.perf_counter() - started
 
     return EvaluationReport(
@@ -71,8 +72,9 @@ def evaluate_reconstruction(
             "reconstruction_runtime_s": _optional_float(reconstruction_metadata.get("runtime_s")),
             "evaluation_runtime_s": elapsed_s,
             "seeingbench_version": seeingbench.__version__,
-            "python": platform.python_version(),
+            "python": provenance["python_version"],
             "numpy": np.__version__,
+            "provenance": provenance,
             "runtime_s": elapsed_s,
         },
     )

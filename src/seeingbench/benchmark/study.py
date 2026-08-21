@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from seeingbench.benchmark.compare import write_comparison_json, write_comparison_markdown
+from seeingbench.benchmark.provenance import runtime_provenance
 from seeingbench.benchmark.reference_runner import (
     evaluate_reference_reconstruction,
     save_reference_evaluation_report,
@@ -322,6 +323,7 @@ def run_comparative_study(
         "comparison_markdown": str(comparison_markdown),
         "frequency_bins": config.frequency_bins,
         "local_block_size_px": config.local_block_size_px,
+        "provenance": runtime_provenance(),
         "validation_boundary": (
             "study adapters consume only benchmark input frames; evaluation consumes retained "
             "truth after reconstruction outputs are written"
@@ -394,6 +396,7 @@ def run_reference_comparative_study(
         "register_translation": config.register_translation,
         "registration_rotation_degrees": list(config.registration_rotation_degrees),
         "registration_scales": list(config.registration_scales),
+        "provenance": runtime_provenance(),
         "validation_boundary": (
             "study adapters consume only observation input frames; the standalone reference "
             "is loaded only by the evaluator after reconstruction outputs are written"

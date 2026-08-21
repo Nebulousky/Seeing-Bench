@@ -62,6 +62,8 @@ def test_cli_generates_baseline_and_evaluates_case(tmp_path: Path) -> None:
     assert report["metadata"]["reconstruction_runtime_s"] is not None
     assert report["metadata"]["evaluation_runtime_s"] > 0.0
     assert report["metadata"]["reconstruction_metadata"]["adapter"] == "mean_stack"
+    assert report["metadata"]["provenance"]["git"]["commit"]
+    assert isinstance(report["metadata"]["provenance"]["git"]["dirty"], bool)
     assert (diagnostics_dir / "frequency_recovery.csv").exists()
     assert (diagnostics_dir / "truth.tif").exists()
     assert (diagnostics_dir / "reconstruction.tif").exists()

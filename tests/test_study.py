@@ -164,6 +164,7 @@ def test_cli_configured_study_runs_builtin_and_external_command(tmp_path: Path) 
     }
     assert {row["kind"] for row in summary["algorithms"]} == {"builtin", "command"}
     assert len(comparison["rows"]) == 2
+    assert summary["provenance"]["git"]["commit"]
     external = next(row for row in summary["algorithms"] if row["algorithm"] == "external_echo")
     metadata = json.loads((Path(external["result_dir"]) / "metadata.json").read_text())
     assert metadata["adapter"] == "external_echo"
@@ -229,6 +230,7 @@ def test_cli_configured_study_accepts_utf8_bom_config(tmp_path: Path) -> None:
 
     summary = json.loads((study_dir / "study-summary.json").read_text(encoding="utf-8"))
     assert summary["algorithm_count"] == 2
+    assert summary["provenance"]["git"]["commit"]
 
 
 def test_cli_study_tool_readiness_reports_command_availability(tmp_path: Path) -> None:
@@ -406,6 +408,7 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
     assert summary["registration_scales"] == [1.0]
     assert summary["reference_path"] == str(case_dir / "truth" / "latent.tif")
     assert summary["reference_metadata_path"] == str(reference_metadata_path)
+    assert summary["provenance"]["git"]["commit"]
     assert {row["kind"] for row in summary["algorithms"]} == {"builtin", "command"}
     assert len(comparison["rows"]) == 2
     for row in summary["algorithms"]:

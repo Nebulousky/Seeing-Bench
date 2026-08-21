@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import platform
 import time
 from collections.abc import Sequence
 from pathlib import Path
@@ -12,6 +11,7 @@ from typing import Any, cast
 import numpy as np
 
 import seeingbench
+from seeingbench.benchmark.provenance import runtime_provenance
 from seeingbench.benchmark.registration import register_global_similarity
 from seeingbench.benchmark.result import EvaluationReport
 from seeingbench.evaluation.false_detail import false_detail_score
@@ -81,6 +81,7 @@ def evaluate_reference_reconstruction(
         reconstruction_metadata_path,
         "reconstruction metadata",
     )
+    provenance = runtime_provenance()
     elapsed_s = time.perf_counter() - started
     return EvaluationReport(
         algorithm=algorithm,
@@ -111,8 +112,9 @@ def evaluate_reference_reconstruction(
             "reconstruction_runtime_s": _optional_float(reconstruction_metadata.get("runtime_s")),
             "evaluation_runtime_s": elapsed_s,
             "seeingbench_version": seeingbench.__version__,
-            "python": platform.python_version(),
+            "python": provenance["python_version"],
             "numpy": np.__version__,
+            "provenance": provenance,
             "runtime_s": elapsed_s,
             "validation_boundary": (
                 "standalone reference is loaded only by the evaluator after reconstruction"

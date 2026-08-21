@@ -134,6 +134,9 @@ Reports keep `reconstruction_runtime_s` separate from `evaluation_runtime_s`; co
 tables display reconstruction runtime only when an adapter recorded it. Comparison JSON and
 Markdown also include direct leaders for best conservative score, most spectral recovery,
 best structural recovery, least unsupported fine detail, and fastest reconstruction.
+Evaluation reports and study summaries include a `provenance` object with SeeingBench,
+Python, NumPy, platform, process, Git commit, branch, origin URL, dirty-state, and short
+status information so runs can be tied back to the exact source tree.
 
 `seeingbench run-command` executes an explicit external command and requires it to write
 `reconstruction.tif` into the declared result directory. Command arguments may use `{case}`

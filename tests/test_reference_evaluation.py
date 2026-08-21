@@ -113,6 +113,8 @@ def test_reference_evaluation_uses_reconstruction_metadata_runtime(tmp_path: Pat
     assert report.metadata["reconstruction_metadata"]["adapter"] == "external"
     assert report.metadata["reference_metadata"]["reference_count"] == 1
     assert report.metadata["reference_limitations"] == ["local_linear_orthographic_projection"]
+    assert report.metadata["provenance"]["git"]["commit"]
+    assert isinstance(report.metadata["provenance"]["git"]["dirty"], bool)
 
 
 def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
