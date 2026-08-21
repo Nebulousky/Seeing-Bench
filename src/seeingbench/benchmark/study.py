@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -206,6 +207,44 @@ def load_reference_comparative_study_config(path: Path) -> ReferenceComparativeS
     return ReferenceComparativeStudyConfig.from_dict(data, path.parent)
 
 
+def load_study_config_for_readiness(
+    path: Path,
+) -> ComparativeStudyConfig | ReferenceComparativeStudyConfig:
+    """Load either comparative-study config shape for tool readiness checks."""
+
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    if not isinstance(data, dict):
+        raise ValueError("study config must be a JSON object")
+    if "reference" in data:
+        return ReferenceComparativeStudyConfig.from_dict(data, path.parent)
+    return ComparativeStudyConfig.from_dict(data, path.parent)
+
+
+def build_study_tool_readiness(
+    config: ComparativeStudyConfig | ReferenceComparativeStudyConfig,
+) -> dict[str, Any]:
+    """Report whether configured study algorithms are locally runnable."""
+
+    config.validate()
+    algorithms = [_algorithm_readiness(algorithm) for algorithm in config.algorithms]
+    ready = all(algorithm["ready"] for algorithm in algorithms)
+    return {
+        "ready": ready,
+        "algorithm_count": len(algorithms),
+        "algorithms": algorithms,
+        "blocking_reasons": sorted(
+            {
+                str(algorithm["reason"])
+                for algorithm in algorithms
+                if not algorithm["ready"] and algorithm.get("reason") is not None
+            }
+        ),
+        "validation_boundary": (
+            "tool readiness checks command availability only; no reconstruction command is run"
+        ),
+    }
+
+
 def run_builtin_baseline_study(
     case_dir: Path,
     output_root: Path,
@@ -397,6 +436,36 @@ def _builtin_adapter(
     if algorithm == "local_block_stack":
         return LocalBlockAlignedStackAdapter(block_size_px=local_block_size_px)
     raise ValueError(f"unknown built-in baseline algorithm: {algorithm}")
+
+
+def _algorithm_readiness(algorithm: StudyAlgorithmConfig) -> dict[str, Any]:
+    if algorithm.kind == "builtin":
+        return {
+            "algorithm": algorithm.name,
+            "kind": algorithm.kind,
+            "ready": True,
+            "builtin": algorithm.builtin,
+            "reason": None,
+        }
+
+    executable = algorithm.command[0]
+    resolved = _resolve_executable(executable)
+    return {
+        "algorithm": algorithm.name,
+        "kind": algorithm.kind,
+        "ready": resolved is not None,
+        "executable": executable,
+        "resolved_executable": resolved,
+        "reason": None if resolved is not None else "command_executable_not_found",
+    }
+
+
+def _resolve_executable(executable: str) -> str | None:
+    executable_path = Path(executable)
+    if executable_path.is_absolute() or executable_path.parent != Path("."):
+        return str(executable_path) if executable_path.is_file() else None
+    resolved = shutil.which(executable)
+    return None if resolved is None else str(Path(resolved))
 
 
 def _algorithm_dict(value: Any) -> dict[str, Any]:

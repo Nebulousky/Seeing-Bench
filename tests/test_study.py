@@ -231,6 +231,82 @@ def test_cli_configured_study_accepts_utf8_bom_config(tmp_path: Path) -> None:
     assert summary["algorithm_count"] == 2
 
 
+def test_cli_study_tool_readiness_reports_command_availability(tmp_path: Path) -> None:
+    config_path = tmp_path / "study.json"
+    readiness_path = tmp_path / "tool-readiness.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "case": str(tmp_path / "case"),
+                "frequency_bins": 6,
+                "algorithms": [
+                    {"name": "mean_stack", "kind": "builtin", "builtin": "mean_stack"},
+                    {
+                        "name": "python_tool",
+                        "kind": "command",
+                        "command": [sys.executable, "--version"],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "study",
+                "tool-readiness",
+                "--config",
+                str(config_path),
+                "--output",
+                str(readiness_path),
+            ]
+        )
+        == 0
+    )
+
+    report = json.loads(readiness_path.read_text(encoding="utf-8"))
+    assert report["ready"]
+    assert report["algorithm_count"] == 2
+    python_tool = next(row for row in report["algorithms"] if row["algorithm"] == "python_tool")
+    assert python_tool["resolved_executable"] == sys.executable
+    assert report["validation_boundary"]
+
+
+def test_cli_study_tool_readiness_returns_nonzero_for_missing_command(tmp_path: Path) -> None:
+    config_path = tmp_path / "study.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "case": str(tmp_path / "case"),
+                "frequency_bins": 6,
+                "algorithms": [
+                    {"name": "mean_stack", "kind": "builtin", "builtin": "mean_stack"},
+                    {
+                        "name": "missing_tool",
+                        "kind": "command",
+                        "command": ["seeingbench-definitely-missing-tool"],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "study",
+                "tool-readiness",
+                "--config",
+                str(config_path),
+            ]
+        )
+        == 1
+    )
+
+
 def test_cli_reference_configured_study_compares_against_standalone_reference(
     tmp_path: Path,
 ) -> None:

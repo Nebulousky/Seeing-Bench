@@ -27,8 +27,10 @@ from seeingbench.benchmark.reference_runner import (
 from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
 from seeingbench.benchmark.study import (
+    build_study_tool_readiness,
     load_comparative_study_config,
     load_reference_comparative_study_config,
+    load_study_config_for_readiness,
     run_builtin_baseline_study,
     run_comparative_study,
     run_reference_comparative_study,
@@ -222,6 +224,14 @@ def _build_parser() -> argparse.ArgumentParser:
     run_reference_study_config.add_argument("--config", required=True, type=Path)
     run_reference_study_config.add_argument("--output", required=True, type=Path)
     run_reference_study_config.set_defaults(func=_study_run_reference_config)
+
+    tool_readiness = study_subparsers.add_parser(
+        "tool-readiness",
+        help="check configured study command availability without running reconstructions",
+    )
+    tool_readiness.add_argument("--config", required=True, type=Path)
+    tool_readiness.add_argument("--output", type=Path)
+    tool_readiness.set_defaults(func=_study_tool_readiness)
 
     experiment = subparsers.add_parser("experiment", help="experiment orchestration")
     experiment_subparsers = experiment.add_subparsers(required=True)
@@ -544,6 +554,18 @@ def _study_run_reference_config(args: argparse.Namespace) -> int:
     summary = run_reference_comparative_study(config, args.output)
     sys.stdout.write(f"{json.dumps(summary, indent=2)}\n")
     return 0
+
+
+def _study_tool_readiness(args: argparse.Namespace) -> int:
+    config = load_study_config_for_readiness(args.config)
+    report = build_study_tool_readiness(config)
+    payload = json.dumps(report, indent=2)
+    if args.output is None:
+        sys.stdout.write(f"{payload}\n")
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(payload, encoding="utf-8")
+    return 0 if report["ready"] else 1
 
 
 def _experiment_synthetic_sweep(args: argparse.Namespace) -> int:

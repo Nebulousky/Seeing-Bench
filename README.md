@@ -142,6 +142,14 @@ seeingbench study run-config \
   --output outputs/configured-study
 ```
 
+Check configured external commands without running any reconstructions:
+
+```bash
+seeingbench study tool-readiness \
+  --config configs/studies/example-comparative-study.json \
+  --output outputs/configured-study-tool-readiness.json
+```
+
 Run a configured study that evaluates each result against a standalone lunar reference:
 
 ```bash

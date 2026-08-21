@@ -156,6 +156,11 @@ not locally deform or otherwise bend the reference to hide reconstruction errors
 `{result}` placeholders and must write `reconstruction.tif` in the result directory.
 Relative `case` paths are resolved from the config file's parent directory.
 
+`seeingbench study tool-readiness` accepts the same configured-study files, including
+standalone-reference study files, and checks whether command executables resolve locally
+without running them. Built-in adapters are reported as ready; missing command executables
+make the command return non-zero.
+
 `seeingbench study run-reference-config` uses the same algorithm entries but evaluates each
 result against a standalone `reference` image path instead of synthetic retained truth. It
 supports optional `reference_metadata`, `register_translation`,
