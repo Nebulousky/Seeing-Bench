@@ -225,6 +225,7 @@ seeingbench render telescope-reference \
   --surface-reference-report outputs/copernicus-reference/surface-reference-report.json \
   --observation configs/observations/example-lunar-observation.json \
   --output-root outputs/copernicus-telescope-reference \
+  --spice-cache-root . \
   --role reflectance
 ```
 
@@ -236,6 +237,15 @@ seeingbench geometry spice-readiness \
   --manifest manifests/lro_spice_archive.json \
   --cache-root . \
   --output outputs/spice-readiness.json
+```
+
+Compute SPICE-backed topocentric lunar geometry from already-local kernels:
+
+```bash
+seeingbench geometry spice-observation \
+  --observation configs/observations/example-lunar-observation.json \
+  --cache-root . \
+  --output outputs/spice-observation.json
 ```
 
 Inspect whether a documented real-data ROI is locally ready without downloading bulk data:

@@ -243,13 +243,21 @@ The `render telescope-reference` command accepts the real-observation metadata s
 `configs/observations/example-lunar-observation.json`. The first implementation requires
 `telescope.aperture_mm`, `telescope.focal_length_mm`, `camera.pixel_size_um`, and
 `filter.effective_wavelength_nm` to compute a diffraction-matched local reference. Observer
-position, timestamp, camera dimensions, and Earth-Moon distance are preserved as metadata,
-but the command currently reports limitations rather than pretending to solve SPICE-backed
-orientation, libration, illumination, or Earth-view projection.
+position, timestamp, camera dimensions, and Earth-Moon distance are preserved as metadata.
+When `--spice-cache-root` is provided and the observation lists local kernels, the renderer
+uses SPICE-derived topocentric Earth-Moon distance for diffraction matching and records
+sub-observer, sub-solar, phase, and angular-radius metadata. It still reports limitations
+rather than pretending to apply Earth-view pixel reprojection or illumination rendering.
 
 `geometry spice-readiness` checks the SPICE side of that contract. Observation metadata must
 include `utc_start`, `observer.latitude`, `observer.longitude`, `observer.altitude_m`, and
 `spice.kernels`, where each kernel path is relative to the selected `--cache-root`. The
 command parses a local NAIF `checksum.tab` when present, verifies local kernel MD5 values,
 reports kernel type counts, and reports whether the optional `spiceypy` package is
-available. It does not compute geometry.
+available.
+
+`geometry spice-observation` computes topocentric lunar geometry from the observation's
+listed local kernels without downloading data. The report includes Earth-Moon distance,
+Moon angular radius, sub-observer latitude/longitude, sub-solar latitude/longitude, phase
+angle, and illuminated fraction. It returns non-zero when metadata, kernel files, or
+`spiceypy` are unavailable.

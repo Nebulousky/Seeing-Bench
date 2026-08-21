@@ -42,6 +42,10 @@ from seeingbench.datasets.manifests import (
 )
 from seeingbench.datasets.readiness import build_roi_download_plan, build_roi_readiness_report
 from seeingbench.datasets.reproject import reproject_extracted_roi_products
+from seeingbench.geometry.observation import (
+    build_spice_observation_geometry_report,
+    write_spice_observation_geometry_report,
+)
 from seeingbench.geometry.spice import build_spice_readiness_report, write_spice_readiness_report
 from seeingbench.io.images import load_grayscale_image
 from seeingbench.observations import load_observation_metadata
@@ -240,6 +244,7 @@ def _build_parser() -> argparse.ArgumentParser:
     telescope_reference.add_argument("--observation", required=True, type=Path)
     telescope_reference.add_argument("--output-root", required=True, type=Path)
     telescope_reference.add_argument("--role")
+    telescope_reference.add_argument("--spice-cache-root", type=Path)
     telescope_reference.set_defaults(func=_render_telescope_reference)
 
     geometry = subparsers.add_parser("geometry", help="geometry readiness utilities")
@@ -254,6 +259,15 @@ def _build_parser() -> argparse.ArgumentParser:
     spice_readiness.add_argument("--cache-root", type=Path, default=Path("."))
     spice_readiness.add_argument("--output", type=Path)
     spice_readiness.set_defaults(func=_geometry_spice_readiness)
+
+    spice_observation = geometry_subparsers.add_parser(
+        "spice-observation",
+        help="compute SPICE-backed topocentric Moon geometry for an observation",
+    )
+    spice_observation.add_argument("--observation", required=True, type=Path)
+    spice_observation.add_argument("--cache-root", type=Path, default=Path("."))
+    spice_observation.add_argument("--output", type=Path)
+    spice_observation.set_defaults(func=_geometry_spice_observation)
 
     datasets = subparsers.add_parser("datasets", help="dataset manifest utilities")
     dataset_subparsers = datasets.add_subparsers(required=True)
@@ -540,6 +554,7 @@ def _render_telescope_reference(args: argparse.Namespace) -> int:
         args.observation,
         args.output_root,
         role=args.role,
+        spice_cache_root=args.spice_cache_root,
     )
     sys.stdout.write(f"{json.dumps(report, indent=2)}\n")
     return 0 if report["reference_count"] > 0 else 1
@@ -552,6 +567,16 @@ def _geometry_spice_readiness(args: argparse.Namespace) -> int:
         sys.stdout.write(f"{payload}\n")
     else:
         write_spice_readiness_report(report, args.output)
+    return 0 if report["ready"] else 1
+
+
+def _geometry_spice_observation(args: argparse.Namespace) -> int:
+    report = build_spice_observation_geometry_report(args.observation, args.cache_root)
+    payload = json.dumps(report, indent=2)
+    if args.output is None:
+        sys.stdout.write(f"{payload}\n")
+    else:
+        write_spice_observation_geometry_report(report, args.output)
     return 0 if report["ready"] else 1
 
 

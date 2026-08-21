@@ -13,7 +13,7 @@ from seeingbench.simulation.telescope import MOON_MEAN_DISTANCE_M
 def load_observation_metadata(path: Path) -> dict[str, Any]:
     """Load a real-observation metadata JSON object."""
 
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(data, dict):
         raise ValueError("observation metadata must be a JSON object")
     if data.get("target", "Moon") != "Moon":
