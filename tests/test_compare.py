@@ -16,6 +16,9 @@ def test_compare_ranks_higher_recovery_and_lower_false_detail(tmp_path: Path) ->
     assert "false detail" in comparison["ranking_basis"]
     assert comparison["rows"][0]["reconstruction_runtime_s"] == 2.0
     assert comparison["rows"][0]["git_commit"] == "abc123"
+    assert comparison["rows"][0]["reference_provenance"]["logical_identifier"] == (
+        "urn:nasa:pds:strong"
+    )
     assert comparison["leaders"]["best_score"]["algorithm"] == "strong"
     assert comparison["leaders"]["best_frequency_recovery"]["algorithm"] == "strong"
     assert comparison["leaders"]["least_false_detail"]["algorithm"] == "strong"
@@ -113,6 +116,9 @@ def _write_report(
                     "reconstruction_runtime_s": runtime_s,
                     "evaluation_runtime_s": 0.1,
                     "reference_limitations": ["local_linear_orthographic_projection"],
+                    "reference_provenance": {
+                        "logical_identifier": f"urn:nasa:pds:{algorithm}",
+                    },
                     "provenance": {
                         "git": {
                             "commit": "abc123",

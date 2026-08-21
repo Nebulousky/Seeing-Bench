@@ -28,6 +28,8 @@ def render_markdown_report(report: dict[str, Any]) -> str:
     provenance = metadata.get("provenance", {})
     git = provenance.get("git", {}) if isinstance(provenance, dict) else {}
     reference_limitations = metadata.get("reference_limitations", [])
+    reference_provenance = metadata.get("reference_provenance", {})
+    reference_generation = metadata.get("reference_generation", {})
     lines = [
         f"# SeeingBench Report: {report['algorithm']}",
         "",
@@ -90,6 +92,22 @@ def render_markdown_report(report: dict[str, Any]) -> str:
             "## Reference Limitations",
             "",
             *[f"- `{limitation}`" for limitation in reference_limitations],
+            "",
+        ]
+    if reference_provenance or reference_generation:
+        lines += [
+            "## Reference Provenance",
+            "",
+            *[
+                f"- {label}: `{value}`"
+                for label, value in (
+                    ("PDS identifier", reference_provenance.get("logical_identifier")),
+                    ("Title", reference_provenance.get("title")),
+                    ("Generation method", reference_generation.get("method")),
+                    ("Reference source", reference_generation.get("source")),
+                )
+                if value is not None
+            ],
             "",
         ]
     diagnostics = report.get("diagnostics")

@@ -150,7 +150,8 @@ runtime in `metadata.json`; evaluation remains a separate step.
 `seeingbench evaluate-reference` compares a standalone reference image (`.npy` or supported
 image file) with a reconstruction image. `--reference-metadata` may point at the
 corresponding reference-generation JSON report; its limitations and provenance are copied
-into the metrics metadata. `--register-translation` permits only a global integer
+into the metrics metadata as `reference_limitations`, `reference_provenance`, and
+`reference_generation`. `--register-translation` permits only a global integer
 translation estimated by phase correlation before scoring. Repeated
 `--registration-rotation-deg` and `--registration-scale` values enable a constrained global
 similarity grid search around the image centre, scored by reference MSE. These controls do

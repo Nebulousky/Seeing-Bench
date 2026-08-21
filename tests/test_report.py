@@ -24,6 +24,14 @@ def test_markdown_report_renders_core_metrics() -> None:
                 "runtime_s": 1.0,
                 "case_metadata": {"config": {"frame_count": 2}},
                 "reference_limitations": ["local_linear_orthographic_projection"],
+                "reference_provenance": {
+                    "logical_identifier": "urn:nasa:pds:reference",
+                    "title": "Reference Tile",
+                },
+                "reference_generation": {
+                    "method": "gaussian diffraction matching on local ROI map grid",
+                    "source": "surface.npy",
+                },
                 "provenance": {
                     "git": {
                         "commit": "abc123",
@@ -39,3 +47,6 @@ def test_markdown_report_renders_core_metrics() -> None:
     assert "Git commit: `abc123`" in markdown
     assert "Reference Limitations" in markdown
     assert "`local_linear_orthographic_projection`" in markdown
+    assert "Reference Provenance" in markdown
+    assert "urn:nasa:pds:reference" in markdown
+    assert "gaussian diffraction matching" in markdown

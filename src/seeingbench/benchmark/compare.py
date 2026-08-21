@@ -24,6 +24,7 @@ class ComparisonRow:
     git_commit: str | None
     git_dirty: bool | None
     reference_limitations: tuple[str, ...]
+    reference_provenance: dict[str, Any]
     score: float
 
     def to_dict(self) -> dict[str, Any]:
@@ -40,6 +41,7 @@ class ComparisonRow:
             "git_commit": self.git_commit,
             "git_dirty": self.git_dirty,
             "reference_limitations": list(self.reference_limitations),
+            "reference_provenance": self.reference_provenance,
             "score": self.score,
         }
 
@@ -181,6 +183,7 @@ def _row_from_report(metrics_path: Path) -> ComparisonRow:
         git_commit=None if not isinstance(git, dict) else _optional_str(git.get("commit")),
         git_dirty=None if not isinstance(git, dict) else _optional_bool(git.get("dirty")),
         reference_limitations=_metadata_str_tuple(metadata, "reference_limitations"),
+        reference_provenance=_metadata_dict(metadata, "reference_provenance"),
         score=score,
     )
 
@@ -245,6 +248,11 @@ def _metadata_str_tuple(metadata: dict[str, Any], key: str) -> tuple[str, ...]:
     if not isinstance(value, list):
         return ()
     return tuple(str(item) for item in value)
+
+
+def _metadata_dict(metadata: dict[str, Any], key: str) -> dict[str, Any]:
+    value = metadata.get(key, {})
+    return value if isinstance(value, dict) else {}
 
 
 def _fmt(value: float | None) -> str:

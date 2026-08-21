@@ -105,6 +105,8 @@ def evaluate_reference_reconstruction(
             else str(reference_metadata_path),
             "reference_metadata": reference_metadata,
             "reference_limitations": _metadata_list(reference_metadata, "limitations"),
+            "reference_provenance": _reference_provenance(reference_metadata, reference_path),
+            "reference_generation": _reference_generation(reference_metadata, reference_path),
             "reconstruction_path": str(reconstruction_path),
             "benchmark_mode": "standalone_reference",
             "registration": registration,
@@ -151,6 +153,48 @@ def _load_optional_json_metadata(path: Path | None, label: str) -> dict[str, Any
 def _metadata_list(metadata: dict[str, Any], key: str) -> list[Any]:
     value = metadata.get(key, [])
     return value if isinstance(value, list) else []
+
+
+def _reference_provenance(metadata: dict[str, Any], reference_path: Path) -> dict[str, Any]:
+    reference = _reference_metadata_row(metadata, reference_path)
+    if reference is None:
+        return {}
+    provenance = reference.get("label_provenance", {})
+    return provenance if isinstance(provenance, dict) else {}
+
+
+def _reference_generation(metadata: dict[str, Any], reference_path: Path) -> dict[str, Any]:
+    reference = _reference_metadata_row(metadata, reference_path)
+    if reference is None:
+        return {}
+    return {
+        key: reference[key]
+        for key in (
+            "role",
+            "source",
+            "output",
+            "method",
+            "reference_resolution_m_per_px",
+            "earth_moon_distance_m",
+            "diffraction_sigma_reference_px",
+        )
+        if key in reference
+    }
+
+
+def _reference_metadata_row(
+    metadata: dict[str, Any],
+    reference_path: Path,
+) -> dict[str, Any] | None:
+    references = metadata.get("references", [])
+    if not isinstance(references, list):
+        return None
+    candidates = [reference for reference in references if isinstance(reference, dict)]
+    reference_path_text = str(reference_path)
+    for reference in candidates:
+        if str(reference.get("output")) == reference_path_text:
+            return reference
+    return candidates[0] if len(candidates) == 1 else None
 
 
 def _optional_float(value: Any) -> float | None:

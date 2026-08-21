@@ -91,6 +91,16 @@ def test_reference_evaluation_uses_reconstruction_metadata_runtime(tmp_path: Pat
             {
                 "reference_count": 1,
                 "limitations": ["local_linear_orthographic_projection"],
+                "references": [
+                    {
+                        "role": "reflectance",
+                        "source": "surface.npy",
+                        "output": str(reference_path),
+                        "method": "gaussian diffraction matching on local ROI map grid",
+                        "label_provenance": {"logical_identifier": "urn:nasa:pds:reference"},
+                        "diffraction_sigma_reference_px": 1.5,
+                    }
+                ],
             }
         ),
         encoding="utf-8",
@@ -113,6 +123,12 @@ def test_reference_evaluation_uses_reconstruction_metadata_runtime(tmp_path: Pat
     assert report.metadata["reconstruction_metadata"]["adapter"] == "external"
     assert report.metadata["reference_metadata"]["reference_count"] == 1
     assert report.metadata["reference_limitations"] == ["local_linear_orthographic_projection"]
+    assert report.metadata["reference_provenance"]["logical_identifier"] == (
+        "urn:nasa:pds:reference"
+    )
+    assert report.metadata["reference_generation"]["method"] == (
+        "gaussian diffraction matching on local ROI map grid"
+    )
     assert report.metadata["provenance"]["git"]["commit"]
     assert isinstance(report.metadata["provenance"]["git"]["dirty"], bool)
 
@@ -126,7 +142,18 @@ def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
     np.save(reference_path, reference)
     np.save(reconstruction_path, reference.copy())
     reference_metadata_path.write_text(
-        json.dumps({"limitations": ["simple_lambertian_illumination_model"]}),
+        json.dumps(
+            {
+                "limitations": ["simple_lambertian_illumination_model"],
+                "references": [
+                    {
+                        "output": str(reference_path),
+                        "method": "gaussian diffraction matching on local ROI map grid",
+                        "label_provenance": {"logical_identifier": "urn:nasa:pds:cli-reference"},
+                    }
+                ],
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -160,4 +187,7 @@ def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
     assert report["metadata"]["benchmark_mode"] == "standalone_reference"
     assert report["metadata"]["registration"]["method"] == "global_similarity_grid_search"
     assert report["metadata"]["reference_limitations"] == ["simple_lambertian_illumination_model"]
+    assert report["metadata"]["reference_provenance"]["logical_identifier"] == (
+        "urn:nasa:pds:cli-reference"
+    )
     assert report["image_similarity"]["mse"] == 0.0
