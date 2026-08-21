@@ -162,5 +162,6 @@ Dataset manifests may also declare `product_files` for ROI-specific file require
 | `local_path` | string | Repository-relative expected cache path. |
 | `checksum` | string or null | Optional `<algorithm>:<hex>` checksum; supported algorithms are `sha256`, `sha1`, and `md5`. |
 | `expected_size_bytes` | integer or null | Optional exact byte size check for already-local files. |
+| `label_url` | string or null | Optional official HTTP(S) URL for a small detached PDS label that may be fetched with `datasets fetch-labels`. |
 | `label_local_path` | string or null | Optional repository-relative path to a small cached PDS label parsed for coverage and resolution checks. |
 | `purpose` | string | Optional explanation of how the file supports the ROI. |

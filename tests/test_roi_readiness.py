@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from types import TracebackType
+from urllib.request import Request
 
 import pytest
 
@@ -277,6 +279,64 @@ def test_cli_writes_roi_readiness_report_and_returns_not_ready(tmp_path: Path) -
     assert products_by_role["geometry"]["file_count"] == 0
     assert products_by_role["reflectance"]["label_metadata_status"] == "missing"
     assert products_by_role["terrain"]["label_metadata_status"] == "missing"
+
+
+def test_cli_fetch_labels_writes_declared_product_label(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    manifest = _manifest_data(checksum=None)
+    manifest["product_files"] = [
+        {
+            "name": "tile",
+            "url": "https://example.invalid/tile.img",
+            "local_path": "data/tile.img",
+            "checksum": None,
+            "label_url": "https://example.invalid/tile.lbl",
+            "label_local_path": "data/metadata/tile.lbl",
+        }
+    ]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    class Response:
+        def __init__(self) -> None:
+            self.headers = {"Content-Type": "text/plain", "Content-Length": "10"}
+
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            traceback: TracebackType | None,
+        ) -> None:
+            return None
+
+        def read(self, size: int) -> bytes:
+            return b"MAP_SCALE\n"
+
+    def fake_urlopen(request: Request, timeout: int) -> Response:
+        return Response()
+
+    monkeypatch.setattr("seeingbench.datasets.manifests.urllib.request.urlopen", fake_urlopen)
+
+    assert (
+        main(
+            [
+                "datasets",
+                "fetch-labels",
+                str(manifest_path),
+                "--output-root",
+                str(tmp_path / "cache"),
+            ]
+        )
+        == 0
+    )
+    assert (tmp_path / "cache" / "data" / "metadata" / "tile.lbl").read_text(
+        encoding="utf-8"
+    ) == "MAP_SCALE\n"
 
 
 def _valid_roi_data() -> dict[str, object]:

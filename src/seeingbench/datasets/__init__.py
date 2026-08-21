@@ -6,6 +6,7 @@ from seeingbench.datasets.manifests import (
     MetadataDocument,
     ProductFile,
     fetch_manifest_metadata,
+    fetch_manifest_product_labels,
     load_manifest,
     validate_manifest_files,
 )
@@ -26,6 +27,7 @@ __all__ = [
     "ROIProductRequirement",
     "build_roi_readiness_report",
     "fetch_manifest_metadata",
+    "fetch_manifest_product_labels",
     "load_manifest",
     "load_roi_config",
     "parse_pds_label_file",

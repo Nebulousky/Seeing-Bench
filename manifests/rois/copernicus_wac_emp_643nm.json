@@ -25,7 +25,8 @@
       "url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/DATA/MDR/WAC_EMP/WAC_EMP_643NM_E300N3150_304P.IMG",
       "local_path": "data/lroc/copernicus/wac_emp_643nm/WAC_EMP_643NM_E300N3150_304P.IMG",
       "checksum": null,
-      "label_local_path": "data/metadata/lroc/WAC_EMP_643NM_E300N3150_304P.LBL",
+      "label_url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/DATA/MDR/WAC_EMP/WAC_EMP_643NM_E300N3150_304P.xml",
+      "label_local_path": "data/metadata/lroc/WAC_EMP_643NM_E300N3150_304P.xml",
       "purpose": "Primary PDS image product for the 643 nm reflectance tile."
     },
     {
@@ -33,7 +34,8 @@
       "url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/EXTRAS/BROWSE/WAC_EMP/WAC_EMP_643NM_E300N3150_304P.TIF",
       "local_path": "data/lroc/copernicus/wac_emp_643nm/WAC_EMP_643NM_E300N3150_304P.TIF",
       "checksum": null,
-      "label_local_path": "data/metadata/lroc/WAC_EMP_643NM_E300N3150_304P.LBL",
+      "label_url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/DATA/MDR/WAC_EMP/WAC_EMP_643NM_E300N3150_304P.xml",
+      "label_local_path": "data/metadata/lroc/WAC_EMP_643NM_E300N3150_304P.xml",
       "purpose": "Convenience GeoTIFF candidate for early renderer plumbing."
     }
   ]

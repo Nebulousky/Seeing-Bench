@@ -132,6 +132,14 @@ seeingbench datasets fetch-metadata \
   --output-root data/cache
 ```
 
+Fetch only small product labels declared by an ROI-specific manifest:
+
+```bash
+seeingbench datasets fetch-labels \
+  manifests/rois/copernicus_wac_gld100.json \
+  --output-root .
+```
+
 Inspect whether a documented real-data ROI is locally ready without downloading bulk data:
 
 ```bash

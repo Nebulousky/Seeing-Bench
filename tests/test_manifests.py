@@ -12,6 +12,7 @@ from seeingbench.datasets.manifests import (
     MetadataDocument,
     ProductFile,
     fetch_manifest_metadata,
+    fetch_manifest_product_labels,
     validate_manifest_files,
 )
 
@@ -95,6 +96,7 @@ def test_dataset_manifest_accepts_product_files() -> None:
             "local_path": "data/example/tile.img",
             "checksum": "sha256:abcd",
             "expected_size_bytes": 4,
+            "label_url": "https://example.invalid/tile.lbl",
             "label_local_path": "data/metadata/example/tile.lbl",
             "purpose": "test tile",
         }
@@ -104,6 +106,7 @@ def test_dataset_manifest_accepts_product_files() -> None:
 
     assert manifest.product_files[0].name == "tile"
     assert manifest.product_files[0].checksum == "sha256:abcd"
+    assert manifest.product_files[0].label_url == "https://example.invalid/tile.lbl"
     assert manifest.product_files[0].label_local_path == "data/metadata/example/tile.lbl"
     assert manifest.to_dict()["product_files"][0]["expected_size_bytes"] == 4
 
@@ -178,6 +181,64 @@ def test_fetch_manifest_metadata_writes_only_declared_document(
 
     assert written == [tmp_path / "cache" / "data" / "metadata" / "readme.txt"]
     assert written[0].read_text(encoding="utf-8") == "hello world\n"
+
+
+def test_fetch_manifest_product_labels_writes_declared_labels_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    manifest = _valid_manifest_data()
+    manifest["product_files"] = [
+        {
+            "name": "tile img",
+            "url": "https://example.invalid/tile.img",
+            "local_path": "data/tile.img",
+            "checksum": None,
+            "label_url": "https://example.invalid/tile.lbl",
+            "label_local_path": "data/metadata/tile.lbl",
+        },
+        {
+            "name": "tile tif",
+            "url": "https://example.invalid/tile.tif",
+            "local_path": "data/tile.tif",
+            "checksum": None,
+            "label_url": "https://example.invalid/tile.lbl",
+            "label_local_path": "data/metadata/tile.lbl",
+        },
+    ]
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    requests: list[str] = []
+
+    class Response:
+        def __init__(self) -> None:
+            self.headers = {"Content-Type": "application/octet-stream", "Content-Length": "12"}
+
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            traceback: TracebackType | None,
+        ) -> None:
+            return None
+
+        def read(self, size: int) -> bytes:
+            return b"PDS_VERSION\n"
+
+    def fake_urlopen(request: Request, timeout: int) -> Response:
+        requests.append(request.full_url)
+        return Response()
+
+    monkeypatch.setattr("seeingbench.datasets.manifests.urllib.request.urlopen", fake_urlopen)
+
+    written = fetch_manifest_product_labels(manifest_path, tmp_path / "cache")
+
+    assert written == [tmp_path / "cache" / "data" / "metadata" / "tile.lbl"]
+    assert written[0].read_text(encoding="utf-8") == "PDS_VERSION\n"
+    assert requests == ["https://example.invalid/tile.lbl"]
 
 
 def _valid_manifest_data() -> dict[str, object]:

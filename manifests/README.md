@@ -23,6 +23,12 @@ Fetch only declared metadata/index documents:
 seeingbench datasets fetch-metadata manifests/lro_spice_archive.json --output-root data/cache
 ```
 
+Fetch only declared product labels:
+
+```bash
+seeingbench datasets fetch-labels manifests/rois/copernicus_wac_gld100.json --output-root .
+```
+
 Inspect local ROI readiness without downloading bulk products:
 
 ```bash

@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree
 
 PDS_FIELD_NAMES = (
     "EASTERNMOST_LONGITUDE",
@@ -24,6 +25,10 @@ PDS_FIELD_NAMES = (
 def parse_pds_label_text(text: str) -> dict[str, Any]:
     """Parse a bounded subset of flat PDS label key/value metadata."""
 
+    stripped = text.lstrip()
+    if stripped.startswith("<?xml") or stripped.startswith("<Product"):
+        return _parse_pds4_xml_label(stripped)
+
     fields: dict[str, Any] = {}
     for raw_line in text.splitlines():
         line = _strip_comment(raw_line).strip()
@@ -34,6 +39,46 @@ def parse_pds_label_text(text: str) -> dict[str, Any]:
         if key not in PDS_FIELD_NAMES:
             continue
         fields[key.lower()] = _parse_value(raw_value.strip())
+    return fields
+
+
+def _parse_pds4_xml_label(text: str) -> dict[str, Any]:
+    root = ElementTree.fromstring(text)
+    fields: dict[str, Any] = {}
+    axis_name: str | None = None
+    for element in root.iter():
+        name = _local_name(element.tag)
+        value = (element.text or "").strip()
+        if not value:
+            continue
+        if name == "map_projection_name":
+            fields["map_projection_type"] = value
+        elif name == "south_bounding_coordinate":
+            fields["minimum_latitude"] = _parse_value(value)
+        elif name == "north_bounding_coordinate":
+            fields["maximum_latitude"] = _parse_value(value)
+        elif name == "west_bounding_coordinate":
+            fields["westernmost_longitude"] = _parse_value(value)
+        elif name == "east_bounding_coordinate":
+            fields["easternmost_longitude"] = _parse_value(value)
+        elif name == "pixel_scale_x":
+            fields["map_scale"] = _parse_value(value)
+        elif name == "pixel_resolution_x":
+            degrees_per_pixel = _numeric_value(_parse_value(value))
+            if degrees_per_pixel is not None and degrees_per_pixel > 0:
+                fields["map_resolution"] = 1.0 / degrees_per_pixel
+        elif name == "data_type":
+            fields["sample_type"] = value
+        elif name == "sample_bit_mask":
+            fields["sample_bits"] = value.count("1")
+        elif name == "axis_name":
+            axis_name = value.lower()
+        elif name == "elements" and axis_name is not None:
+            if axis_name == "line":
+                fields["lines"] = _parse_value(value)
+            elif axis_name == "sample":
+                fields["line_samples"] = _parse_value(value)
+            axis_name = None
     return fields
 
 
@@ -104,6 +149,10 @@ def label_summary(fields: dict[str, Any]) -> dict[str, Any]:
 
 def _strip_comment(line: str) -> str:
     return re.sub(r"/\*.*?\*/", "", line)
+
+
+def _local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
 
 
 def _parse_value(value: str) -> Any:

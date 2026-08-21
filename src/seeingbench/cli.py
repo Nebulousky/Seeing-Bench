@@ -17,7 +17,11 @@ from seeingbench.benchmark.compare import write_comparison_json, write_compariso
 from seeingbench.benchmark.experiment import load_synthetic_sweep_config, run_synthetic_sweep
 from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
-from seeingbench.datasets.manifests import fetch_manifest_metadata, validate_manifest_files
+from seeingbench.datasets.manifests import (
+    fetch_manifest_metadata,
+    fetch_manifest_product_labels,
+    validate_manifest_files,
+)
 from seeingbench.datasets.readiness import build_roi_readiness_report
 from seeingbench.io.images import load_grayscale_image
 from seeingbench.reconstruction.adapter import (
@@ -146,6 +150,14 @@ def _build_parser() -> argparse.ArgumentParser:
     fetch_metadata.add_argument("manifest", type=Path)
     fetch_metadata.add_argument("--output-root", required=True, type=Path)
     fetch_metadata.set_defaults(func=_datasets_fetch_metadata)
+
+    fetch_labels = dataset_subparsers.add_parser(
+        "fetch-labels",
+        help="fetch only small product labels declared by a manifest",
+    )
+    fetch_labels.add_argument("manifest", type=Path)
+    fetch_labels.add_argument("--output-root", required=True, type=Path)
+    fetch_labels.set_defaults(func=_datasets_fetch_labels)
 
     roi_readiness = dataset_subparsers.add_parser(
         "roi-readiness",
@@ -318,6 +330,12 @@ def _datasets_validate_manifest(args: argparse.Namespace) -> int:
 
 def _datasets_fetch_metadata(args: argparse.Namespace) -> int:
     written = fetch_manifest_metadata(args.manifest, args.output_root)
+    sys.stdout.write(f"{json.dumps([str(path) for path in written], indent=2)}\n")
+    return 0
+
+
+def _datasets_fetch_labels(args: argparse.Namespace) -> int:
+    written = fetch_manifest_product_labels(args.manifest, args.output_root)
     sys.stdout.write(f"{json.dumps([str(path) for path in written], indent=2)}\n")
     return 0
 

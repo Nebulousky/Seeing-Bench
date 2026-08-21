@@ -78,6 +78,7 @@ class ProductFile:
     local_path: str
     checksum: str | None
     expected_size_bytes: int | None = None
+    label_url: str | None = None
     label_local_path: str | None = None
     purpose: str = ""
 
@@ -95,6 +96,7 @@ class ProductFile:
             expected_size_bytes=None
             if data.get("expected_size_bytes") is None
             else int(data["expected_size_bytes"]),
+            label_url=None if data.get("label_url") is None else str(data["label_url"]),
             label_local_path=None
             if data.get("label_local_path") is None
             else str(data["label_local_path"]),
@@ -108,6 +110,8 @@ class ProductFile:
             raise ValueError("product file name must be non-empty")
         _validate_http_url(self.url, "product file url")
         _validate_relative_path(self.local_path, "product file local_path")
+        if self.label_url is not None:
+            _validate_http_url(self.label_url, "product file label_url")
         if self.label_local_path is not None:
             _validate_relative_path(self.label_local_path, "product file label_local_path")
         if self.checksum is not None:
@@ -228,6 +232,7 @@ class DatasetManifest:
                     "local_path": product.local_path,
                     "checksum": product.checksum,
                     "expected_size_bytes": product.expected_size_bytes,
+                    "label_url": product.label_url,
                     "label_local_path": product.label_local_path,
                     "purpose": product.purpose,
                 }
@@ -269,6 +274,29 @@ def fetch_manifest_metadata(manifest_path: Path, output_root: Path) -> list[Path
     return written
 
 
+def fetch_manifest_product_labels(manifest_path: Path, output_root: Path) -> list[Path]:
+    """Fetch only small product labels explicitly declared by product file records."""
+
+    manifest = load_manifest(manifest_path)
+    written: list[Path] = []
+    seen_destinations: set[Path] = set()
+    for product in manifest.product_files:
+        if product.label_url is None or product.label_local_path is None:
+            continue
+        destination = output_root / product.label_local_path
+        if destination in seen_destinations:
+            continue
+        _fetch_text_url(
+            product.label_url,
+            destination,
+            max_bytes=MAX_METADATA_BYTES,
+            description="product label",
+        )
+        seen_destinations.add(destination)
+        written.append(destination)
+    return written
+
+
 def _validate_one(path: Path) -> dict[str, Any]:
     try:
         manifest = load_manifest(path)
@@ -296,17 +324,31 @@ def _verification_status(manifest: DatasetManifest) -> str:
 
 
 def _fetch_text_document(document: MetadataDocument, destination: Path) -> None:
-    request = urllib.request.Request(document.url, headers={"User-Agent": "SeeingBench/0.1"})
+    _fetch_text_url(
+        document.url,
+        destination,
+        max_bytes=document.expected_max_bytes,
+        description="metadata document",
+    )
+
+
+def _fetch_text_url(
+    url: str,
+    destination: Path,
+    max_bytes: int,
+    description: str,
+) -> None:
+    request = urllib.request.Request(url, headers={"User-Agent": "SeeingBench/0.1"})
     with urllib.request.urlopen(request, timeout=30) as response:
         content_length = response.headers.get("Content-Length")
-        if content_length is not None and int(content_length) > document.expected_max_bytes:
-            raise ValueError(f"{document.url} exceeds metadata size limit")
+        if content_length is not None and int(content_length) > max_bytes:
+            raise ValueError(f"{url} exceeds {description} size limit")
         content_type = response.headers.get("Content-Type", "").lower()
-        if content_type and not _is_text_metadata_response(content_type, document.url):
-            raise ValueError(f"{document.url} is not a text metadata document: {content_type}")
-        payload = response.read(document.expected_max_bytes + 1)
-    if len(payload) > document.expected_max_bytes:
-        raise ValueError(f"{document.url} exceeds metadata size limit")
+        if content_type and not _is_text_metadata_response(content_type, url):
+            raise ValueError(f"{url} is not a text {description}: {content_type}")
+        payload = response.read(max_bytes + 1)
+    if len(payload) > max_bytes:
+        raise ValueError(f"{url} exceeds {description} size limit")
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(payload)
 
