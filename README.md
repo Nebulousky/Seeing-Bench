@@ -211,6 +211,17 @@ seeingbench import-result --source path/to/reconstruction.tif --output outputs/m
 seeingbench evaluate --case benchmarks/generated/demo --result outputs/m51-run --algorithm m51
 ```
 
+External command-line tools can also be run under the same filesystem contract. The command
+must write `{result}/reconstruction.tif`; `{case}` and `{result}` placeholders are expanded:
+
+```bash
+seeingbench run-command \
+  --case benchmarks/generated/demo \
+  --output outputs/m51-run \
+  --name m51 \
+  -- m51-cli --input {case} --output {result}
+```
+
 ## Project Boundary
 
 SeeingBench evaluates reconstruction algorithms. It is not M51 and must not become an

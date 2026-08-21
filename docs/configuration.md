@@ -121,6 +121,11 @@ frequency-bin count, and writes `study-summary.json`, `comparison.json`, and
 `comparison.md`. Reconstruction adapters consume only case input frames; retained truth is
 loaded only by the evaluator after each reconstruction output exists.
 
+`seeingbench run-command` executes an explicit external command and requires it to write
+`reconstruction.tif` into the declared result directory. Command arguments may use `{case}`
+and `{result}` placeholders. The adapter records command, stdout, stderr, return code, and
+runtime in `metadata.json`; evaluation remains a separate step.
+
 ## Validation Rules
 
 - Image arrays must be finite two-dimensional `float64` values.

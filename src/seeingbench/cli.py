@@ -29,6 +29,7 @@ from seeingbench.datasets.reproject import reproject_extracted_roi_products
 from seeingbench.io.images import load_grayscale_image
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
+    CommandLineAdapter,
     LocalBlockAlignedStackAdapter,
     OracleAlignedStackAdapter,
     TranslationAlignedStackAdapter,
@@ -104,6 +105,16 @@ def _build_parser() -> argparse.ArgumentParser:
     import_result.add_argument("--source", required=True, type=Path)
     import_result.add_argument("--output", required=True, type=Path)
     import_result.set_defaults(func=_import_result)
+
+    command_result = subparsers.add_parser(
+        "run-command",
+        help="run an external reconstruction command under the result contract",
+    )
+    command_result.add_argument("--case", required=True, type=Path)
+    command_result.add_argument("--output", required=True, type=Path)
+    command_result.add_argument("--name", default="command_line")
+    command_result.add_argument("command", nargs=argparse.REMAINDER)
+    command_result.set_defaults(func=_run_command_result)
 
     evaluate = subparsers.add_parser("evaluate", help="evaluate result/reconstruction.tif")
     evaluate.add_argument("--case", required=True, type=Path)
@@ -330,6 +341,15 @@ def _import_result(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_command_result(args: argparse.Namespace) -> int:
+    command = _command_remainder(args.command)
+    adapter = CommandLineAdapter(command=command, name=args.name)
+    adapter.prepare(args.case, args.output)
+    adapter.execute(args.case, args.output)
+    adapter.collect_results(args.case, args.output)
+    return 0
+
+
 def _evaluate(args: argparse.Namespace) -> int:
     report = evaluate_reconstruction(
         case_dir=args.case,
@@ -475,6 +495,14 @@ def _append_diagnostics(report_path: Path, diagnostics: dict[str, Any]) -> None:
     report = json.loads(report_path.read_text(encoding="utf-8"))
     report["diagnostics"] = diagnostics
     report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+
+def _command_remainder(command: list[str]) -> tuple[str, ...]:
+    if command and command[0] == "--":
+        command = command[1:]
+    if not command:
+        raise ValueError("run-command requires a command after '--'")
+    return tuple(command)
 
 
 if __name__ == "__main__":
