@@ -1,5 +1,6 @@
 """Dataset manifest helpers."""
 
+from seeingbench.datasets.labels import parse_pds_label_file, parse_pds_label_text
 from seeingbench.datasets.manifests import (
     DatasetManifest,
     MetadataDocument,
@@ -27,6 +28,8 @@ __all__ = [
     "fetch_manifest_metadata",
     "load_manifest",
     "load_roi_config",
+    "parse_pds_label_file",
+    "parse_pds_label_text",
     "resolve_manifest_cache_path",
     "resolve_product_file_cache_path",
     "validate_manifest_files",

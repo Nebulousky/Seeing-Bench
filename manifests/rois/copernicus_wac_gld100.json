@@ -25,6 +25,7 @@
       "url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/DATA/SDP/WAC_GLD100/WAC_GLD100_E300N3150_100M.IMG",
       "local_path": "data/lroc/copernicus/wac_gld100/WAC_GLD100_E300N3150_100M.IMG",
       "checksum": null,
+      "label_local_path": "data/metadata/lroc/WAC_GLD100_E300N3150_100M.LBL",
       "purpose": "Primary PDS image product for the 100 m/pixel terrain tile."
     },
     {
@@ -32,6 +33,7 @@
       "url": "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/EXTRAS/BROWSE/WAC_GLD100/WAC_GLD100_E300N3150_100M.TIF",
       "local_path": "data/lroc/copernicus/wac_gld100/WAC_GLD100_E300N3150_100M.TIF",
       "checksum": null,
+      "label_local_path": "data/metadata/lroc/WAC_GLD100_E300N3150_100M.LBL",
       "purpose": "Convenience GeoTIFF candidate for early renderer plumbing."
     }
   ]

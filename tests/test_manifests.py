@@ -95,6 +95,7 @@ def test_dataset_manifest_accepts_product_files() -> None:
             "local_path": "data/example/tile.img",
             "checksum": "sha256:abcd",
             "expected_size_bytes": 4,
+            "label_local_path": "data/metadata/example/tile.lbl",
             "purpose": "test tile",
         }
     ]
@@ -103,6 +104,7 @@ def test_dataset_manifest_accepts_product_files() -> None:
 
     assert manifest.product_files[0].name == "tile"
     assert manifest.product_files[0].checksum == "sha256:abcd"
+    assert manifest.product_files[0].label_local_path == "data/metadata/example/tile.lbl"
     assert manifest.to_dict()["product_files"][0]["expected_size_bytes"] == 4
 
 

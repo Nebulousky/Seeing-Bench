@@ -8,6 +8,12 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
+from seeingbench.datasets.labels import (
+    label_coverage_status,
+    label_resolution_status,
+    label_summary,
+    parse_pds_label_file,
+)
 from seeingbench.datasets.manifests import DatasetManifest, ProductFile, load_manifest
 
 SUPPORTED_CHECKSUMS = ("sha256", "sha1", "md5")
@@ -149,7 +155,7 @@ def build_roi_readiness_report(
 
     roi = load_roi_config(roi_path)
     products = [
-        _product_status(requirement, cache_root, manifest_root)
+        _product_status(requirement, roi, cache_root, manifest_root)
         for requirement in roi.required_products
     ]
     missing_required = [
@@ -167,7 +173,17 @@ def build_roi_readiness_report(
         for product in products
         if product["required"] and product["manifest_status"] != "verified"
     ]
-    ready = not missing_required and not failed_checksums and not unresolved_checksums
+    incompatible_metadata = [
+        product["role"]
+        for product in products
+        if product["required"] and product["label_metadata_status"] == "incompatible"
+    ]
+    ready = (
+        not missing_required
+        and not failed_checksums
+        and not unresolved_checksums
+        and not incompatible_metadata
+    )
     return {
         "roi": {
             "name": roi.name,
@@ -185,6 +201,7 @@ def build_roi_readiness_report(
             "missing_required_roles": missing_required,
             "checksum_mismatch_roles": failed_checksums,
             "unresolved_checksum_roles": unresolved_checksums,
+            "incompatible_metadata_roles": incompatible_metadata,
         },
         "products": products,
     }
@@ -192,6 +209,7 @@ def build_roi_readiness_report(
 
 def _product_status(
     requirement: ROIProductRequirement,
+    roi: LunarROIConfig,
     cache_root: Path,
     manifest_root: Path,
 ) -> dict[str, Any]:
@@ -199,14 +217,18 @@ def _product_status(
     manifest = load_manifest(manifest_path)
     cache_path = resolve_manifest_cache_path(manifest, cache_root)
     if manifest.product_files:
-        files = [_product_file_status(product, cache_root) for product in manifest.product_files]
+        files: list[dict[str, Any]] = []
+        for product in manifest.product_files:
+            files.append(_product_file_status(product, roi, cache_root))
         presence, path_type, size_bytes = _aggregate_file_presence(files)
         checksum_status = _aggregate_file_checksum_status(files)
+        label_metadata_status = _aggregate_label_metadata_status(files)
         checksum_algorithm = None
         computed_checksum = None
     else:
         files = []
         presence, path_type, size_bytes = _presence(cache_path)
+        label_metadata_status = "not_declared"
         checksum_status, checksum_algorithm, computed_checksum = _checksum_status(
             cache_path,
             manifest.checksum,
@@ -233,13 +255,18 @@ def _product_status(
         "checksum_algorithm": checksum_algorithm,
         "computed_checksum": computed_checksum,
         "checksum_status": checksum_status,
+        "label_metadata_status": label_metadata_status,
         "file_count": len(files),
         "missing_file_count": sum(1 for file in files if file["presence"] != "present"),
         "files": files,
     }
 
 
-def _product_file_status(product: ProductFile, cache_root: Path) -> dict[str, Any]:
+def _product_file_status(
+    product: ProductFile,
+    roi: LunarROIConfig,
+    cache_root: Path,
+) -> dict[str, Any]:
     cache_path = resolve_product_file_cache_path(product, cache_root)
     presence, path_type, size_bytes = _presence(cache_path)
     checksum_status, checksum_algorithm, computed_checksum = _checksum_status(
@@ -249,6 +276,7 @@ def _product_file_status(product: ProductFile, cache_root: Path) -> dict[str, An
         path_type,
     )
     size_status = _size_status(size_bytes, product.expected_size_bytes, presence, path_type)
+    label_status = _label_status(product, roi, cache_root)
     return {
         "name": product.name,
         "source": product.url,
@@ -262,6 +290,7 @@ def _product_file_status(product: ProductFile, cache_root: Path) -> dict[str, An
         "checksum_algorithm": checksum_algorithm,
         "computed_checksum": computed_checksum,
         "checksum_status": checksum_status,
+        "label_metadata": label_status,
         "purpose": product.purpose,
     }
 
@@ -303,6 +332,58 @@ def _aggregate_file_checksum_status(files: list[dict[str, Any]]) -> str:
     if statuses and all(status == "ok" for status in statuses):
         return "ok"
     return "unknown"
+
+
+def _aggregate_label_metadata_status(files: list[dict[str, Any]]) -> str:
+    statuses = [str(file["label_metadata"]["status"]) for file in files]
+    if any(status == "incompatible" for status in statuses):
+        return "incompatible"
+    if any(status == "ok" for status in statuses):
+        return "ok"
+    if any(status == "missing" for status in statuses):
+        return "missing"
+    if any(status == "not_declared" for status in statuses):
+        return "not_declared"
+    return "unknown"
+
+
+def _label_status(
+    product: ProductFile,
+    roi: LunarROIConfig,
+    cache_root: Path,
+) -> dict[str, Any]:
+    if product.label_local_path is None:
+        return {
+            "status": "not_declared",
+            "local_path": None,
+            "coverage_status": "unknown",
+            "resolution_status": "unknown",
+            "summary": {},
+        }
+    label_path = cache_root / product.label_local_path
+    if not label_path.exists():
+        return {
+            "status": "missing",
+            "local_path": str(label_path),
+            "coverage_status": "unknown",
+            "resolution_status": "unknown",
+            "summary": {},
+        }
+    fields = parse_pds_label_file(label_path)
+    coverage = label_coverage_status(fields, roi.center_lat_deg, roi.center_lon_deg)
+    resolution = label_resolution_status(fields, roi.target_resolution_m_per_px)
+    status = "ok"
+    if coverage == "outside" or resolution == "coarser_than_target":
+        status = "incompatible"
+    elif coverage == "unknown" and resolution == "unknown":
+        status = "unknown"
+    return {
+        "status": status,
+        "local_path": str(label_path),
+        "coverage_status": coverage,
+        "resolution_status": resolution,
+        "summary": label_summary(fields),
+    }
 
 
 def _checksum_status(

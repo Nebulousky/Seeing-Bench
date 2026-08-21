@@ -78,6 +78,7 @@ class ProductFile:
     local_path: str
     checksum: str | None
     expected_size_bytes: int | None = None
+    label_local_path: str | None = None
     purpose: str = ""
 
     @classmethod
@@ -94,6 +95,9 @@ class ProductFile:
             expected_size_bytes=None
             if data.get("expected_size_bytes") is None
             else int(data["expected_size_bytes"]),
+            label_local_path=None
+            if data.get("label_local_path") is None
+            else str(data["label_local_path"]),
             purpose=str(data.get("purpose", "")),
         )
         product.validate()
@@ -104,6 +108,8 @@ class ProductFile:
             raise ValueError("product file name must be non-empty")
         _validate_http_url(self.url, "product file url")
         _validate_relative_path(self.local_path, "product file local_path")
+        if self.label_local_path is not None:
+            _validate_relative_path(self.label_local_path, "product file label_local_path")
         if self.checksum is not None:
             _validate_checksum(self.checksum)
         if self.expected_size_bytes is not None and self.expected_size_bytes <= 0:
@@ -222,6 +228,7 @@ class DatasetManifest:
                     "local_path": product.local_path,
                     "checksum": product.checksum,
                     "expected_size_bytes": product.expected_size_bytes,
+                    "label_local_path": product.label_local_path,
                     "purpose": product.purpose,
                 }
                 for product in self.product_files

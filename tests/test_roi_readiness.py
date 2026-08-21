@@ -62,6 +62,7 @@ def test_roi_readiness_reports_missing_candidate_products(tmp_path: Path) -> Non
         "missing_required_roles": ["terrain"],
         "checksum_mismatch_roles": [],
         "unresolved_checksum_roles": ["terrain"],
+        "incompatible_metadata_roles": [],
     }
     assert report["products"][0]["presence"] == "missing"
     assert report["products"][0]["checksum_status"] == "not_declared"
@@ -130,6 +131,7 @@ def test_roi_readiness_reports_file_level_product_status(tmp_path: Path) -> None
             "local_path": "data/terrain/tile.img",
             "checksum": checksum,
             "expected_size_bytes": len(payload),
+            "label_local_path": "data/metadata/terrain.lbl",
             "purpose": "ROI terrain tile",
         },
         {
@@ -145,6 +147,9 @@ def test_roi_readiness_reports_file_level_product_status(tmp_path: Path) -> None
     product_path = tmp_path / "cache" / "data" / "terrain" / "tile.img"
     product_path.parent.mkdir(parents=True)
     product_path.write_bytes(payload)
+    label_path = tmp_path / "cache" / "data" / "metadata" / "terrain.lbl"
+    label_path.parent.mkdir(parents=True)
+    label_path.write_text(_compatible_label_text(), encoding="utf-8")
 
     report = build_roi_readiness_report(
         roi_path,
@@ -159,9 +164,54 @@ def test_roi_readiness_reports_file_level_product_status(tmp_path: Path) -> None
     assert product["file_count"] == 2
     assert product["missing_file_count"] == 1
     assert product["checksum_status"] == "missing"
+    assert product["label_metadata_status"] == "ok"
     assert product["files"][0]["checksum_status"] == "ok"
     assert product["files"][0]["size_status"] == "ok"
+    assert product["files"][0]["label_metadata"]["coverage_status"] == "ok"
+    assert product["files"][0]["label_metadata"]["resolution_status"] == "ok"
     assert product["files"][1]["presence"] == "missing"
+
+
+def test_roi_readiness_blocks_incompatible_label_metadata(tmp_path: Path) -> None:
+    payload = b"tile bytes\n"
+    checksum = "sha256:" + hashlib.sha256(payload).hexdigest()
+    roi_path = tmp_path / "roi.json"
+    roi_path.write_text(json.dumps(_valid_roi_data()), encoding="utf-8")
+    manifest_path = tmp_path / "manifests" / "terrain.json"
+    manifest_path.parent.mkdir()
+    manifest = _manifest_data(checksum=None)
+    manifest["product_files"] = [
+        {
+            "name": "terrain tile",
+            "url": "https://example.invalid/terrain/tile.img",
+            "local_path": "data/terrain.bin",
+            "checksum": checksum,
+            "label_local_path": "data/metadata/terrain.lbl",
+        }
+    ]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    product_path = tmp_path / "cache" / "data" / "terrain.bin"
+    product_path.parent.mkdir(parents=True)
+    product_path.write_bytes(payload)
+    label_path = tmp_path / "cache" / "data" / "metadata" / "terrain.lbl"
+    label_path.parent.mkdir(parents=True)
+    label_path.write_text(
+        _compatible_label_text().replace("MAP_SCALE = 99.75", "MAP_SCALE = 250.0"),
+        encoding="utf-8",
+    )
+
+    report = build_roi_readiness_report(
+        roi_path,
+        cache_root=tmp_path / "cache",
+        manifest_root=tmp_path,
+    )
+
+    assert not report["ready"]
+    assert report["blocking_reasons"]["incompatible_metadata_roles"] == ["terrain"]
+    assert report["products"][0]["label_metadata_status"] == "incompatible"
+    assert report["products"][0]["files"][0]["label_metadata"]["resolution_status"] == (
+        "coarser_than_target"
+    )
 
 
 def test_resolve_manifest_cache_path_uses_cache_root() -> None:
@@ -225,6 +275,8 @@ def test_cli_writes_roi_readiness_report_and_returns_not_ready(tmp_path: Path) -
     assert products_by_role["reflectance"]["file_count"] == 2
     assert products_by_role["terrain"]["file_count"] == 2
     assert products_by_role["geometry"]["file_count"] == 0
+    assert products_by_role["reflectance"]["label_metadata_status"] == "missing"
+    assert products_by_role["terrain"]["label_metadata_status"] == "missing"
 
 
 def _valid_roi_data() -> dict[str, object]:
@@ -261,3 +313,20 @@ def _manifest_data(checksum: str | None) -> dict[str, object]:
 
 def _import_manifest(data: dict[str, object]) -> DatasetManifest:
     return DatasetManifest.from_dict(data)
+
+
+def _compatible_label_text() -> str:
+    return """
+    MAP_PROJECTION_TYPE = "EQUIRECTANGULAR"
+    MINIMUM_LATITUDE = 0.0
+    MAXIMUM_LATITUDE = 60.0
+    WESTERNMOST_LONGITUDE = 270.0
+    EASTERNMOST_LONGITUDE = 360.0
+    MAP_SCALE = 99.75 <METERS/PIXEL>
+    MAP_RESOLUTION = 304.0 <PIXELS/DEGREE>
+    LINES = 18240
+    LINE_SAMPLES = 27360
+    SAMPLE_TYPE = LSB_INTEGER
+    SAMPLE_BITS = 16
+    END
+    """
