@@ -62,9 +62,9 @@ smooth multiscale warp fields, Gaussian PSF/noise, approximate spatially varying
 blur, explicit integer sensor-grid downsampling, explicit sensor saturation metadata,
 TIFF/NumPy benchmark export, baseline mean-stack adapter, global and local block translation
 stack adapters, image/structure/frequency/false-detail/warp metrics, diffraction-relative
-frequency interpretation, Markdown reports, comparison reports, richer diagnostics, CLI
-commands, explicit external command execution, built-in baseline comparative studies, and
-unit tests. Phase 2 now has
+frequency interpretation, standalone-reference evaluation, Markdown reports, comparison
+reports, richer diagnostics, CLI commands, explicit external command execution, built-in
+baseline comparative studies, and unit tests. Phase 2 now has
 manifests, metadata/label fetching, ROI readiness checks for local cache presence and declared checksums, explicit no-download ROI
 download plans, verified local IMG window extraction, and basic map-window reprojection
 into ROI reference grids. Phase 3 has partial real-observation metadata parsing and a

@@ -126,6 +126,11 @@ loaded only by the evaluator after each reconstruction output exists.
 and `{result}` placeholders. The adapter records command, stdout, stderr, return code, and
 runtime in `metadata.json`; evaluation remains a separate step.
 
+`seeingbench evaluate-reference` compares a standalone reference image (`.npy` or supported
+image file) with a reconstruction image. `--register-translation` permits only a global
+integer translation estimated by phase correlation before scoring; it does not rotate,
+scale, locally deform, or otherwise bend the reference to hide reconstruction errors.
+
 ## Validation Rules
 
 - Image arrays must be finite two-dimensional `float64` values.

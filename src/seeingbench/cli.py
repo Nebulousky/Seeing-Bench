@@ -15,6 +15,10 @@ import numpy as np
 from seeingbench.benchmark.case import load_benchmark_case, load_input_frame, save_simulation_case
 from seeingbench.benchmark.compare import write_comparison_json, write_comparison_markdown
 from seeingbench.benchmark.experiment import load_synthetic_sweep_config, run_synthetic_sweep
+from seeingbench.benchmark.reference_runner import (
+    evaluate_reference_reconstruction,
+    save_reference_evaluation_report,
+)
 from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
 from seeingbench.benchmark.study import run_builtin_baseline_study
@@ -124,6 +128,18 @@ def _build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--diagnostics", type=Path)
     evaluate.add_argument("--frequency-bins", type=int, default=24)
     evaluate.set_defaults(func=_evaluate)
+
+    evaluate_reference = subparsers.add_parser(
+        "evaluate-reference",
+        help="evaluate a reconstruction against a standalone reference image",
+    )
+    evaluate_reference.add_argument("--reference", required=True, type=Path)
+    evaluate_reference.add_argument("--reconstruction", required=True, type=Path)
+    evaluate_reference.add_argument("--algorithm", default="manual")
+    evaluate_reference.add_argument("--output", required=True, type=Path)
+    evaluate_reference.add_argument("--frequency-bins", type=int, default=24)
+    evaluate_reference.add_argument("--register-translation", action="store_true")
+    evaluate_reference.set_defaults(func=_evaluate_reference)
 
     report = subparsers.add_parser("report", help="render metrics.json as Markdown")
     report.add_argument("--metrics", required=True, type=Path)
@@ -372,6 +388,18 @@ def _evaluate(args: argparse.Namespace) -> int:
             warp_components=case.warp_components,
         )
         _append_diagnostics(output, diagnostics)
+    return 0
+
+
+def _evaluate_reference(args: argparse.Namespace) -> int:
+    report = evaluate_reference_reconstruction(
+        args.reference,
+        args.reconstruction,
+        algorithm=args.algorithm,
+        frequency_bins=args.frequency_bins,
+        register_translation=args.register_translation,
+    )
+    save_reference_evaluation_report(report, args.output)
     return 0
 
 

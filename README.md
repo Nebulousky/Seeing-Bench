@@ -222,6 +222,18 @@ seeingbench run-command \
   -- m51-cli --input {case} --output {result}
 ```
 
+Evaluate a real/reference image pair directly, with optional constrained global translation
+registration:
+
+```bash
+seeingbench evaluate-reference \
+  --reference outputs/copernicus-telescope-reference/telescope-matched-reflectance.npy \
+  --reconstruction outputs/m51-run/reconstruction.tif \
+  --algorithm m51 \
+  --output outputs/m51-run/reference-metrics.json \
+  --register-translation
+```
+
 ## Project Boundary
 
 SeeingBench evaluates reconstruction algorithms. It is not M51 and must not become an
