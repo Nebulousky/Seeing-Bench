@@ -328,14 +328,21 @@ def _product_file_status(
 ) -> dict[str, Any]:
     cache_path = resolve_product_file_cache_path(product, cache_root)
     presence, path_type, size_bytes = _presence(cache_path)
+    label_status = _label_status(product, roi, cache_root)
+    label_checksum = _label_product_checksum(label_status)
+    label_size = _label_product_size(label_status)
     checksum_status, checksum_algorithm, computed_checksum = _checksum_status(
         cache_path,
-        product.checksum,
+        product.checksum or label_checksum,
         presence,
         path_type,
     )
-    size_status = _size_status(size_bytes, product.expected_size_bytes, presence, path_type)
-    label_status = _label_status(product, roi, cache_root)
+    size_status = _size_status(
+        size_bytes,
+        product.expected_size_bytes or label_size,
+        presence,
+        path_type,
+    )
     return {
         "name": product.name,
         "source": product.url,
@@ -344,8 +351,10 @@ def _product_file_status(
         "path_type": path_type,
         "size_bytes": size_bytes,
         "expected_size_bytes": product.expected_size_bytes,
+        "label_expected_size_bytes": label_size,
         "size_status": size_status,
         "declared_checksum": product.checksum,
+        "label_declared_checksum": label_checksum,
         "checksum_algorithm": checksum_algorithm,
         "computed_checksum": computed_checksum,
         "checksum_status": checksum_status,
@@ -431,6 +440,8 @@ def _label_status(
     fields = parse_pds_label_file(label_path)
     coverage = label_coverage_status(fields, roi.center_lat_deg, roi.center_lon_deg)
     resolution = label_resolution_status(fields, roi.target_resolution_m_per_px)
+    summary = label_summary(fields)
+    describes_product = _label_describes_product(summary, product)
     status = "ok"
     if coverage == "outside" or resolution == "coarser_than_target":
         status = "incompatible"
@@ -441,6 +452,7 @@ def _label_status(
         "local_path": str(label_path),
         "coverage_status": coverage,
         "resolution_status": resolution,
+        "describes_product": describes_product,
         "roi_pixel_window": roi_pixel_window(
             fields,
             roi.center_lat_deg,
@@ -448,8 +460,33 @@ def _label_status(
             roi.width_km,
             roi.height_km,
         ),
-        "summary": label_summary(fields),
+        "summary": summary,
     }
+
+
+def _label_describes_product(summary: dict[str, Any], product: ProductFile) -> bool:
+    file_name = summary.get("product_file_name")
+    if not isinstance(file_name, str):
+        return False
+    return file_name.lower() == Path(product.local_path).name.lower()
+
+
+def _label_product_checksum(label_status: dict[str, Any]) -> str | None:
+    if not label_status.get("describes_product"):
+        return None
+    checksum = label_status.get("summary", {}).get("product_md5_checksum")
+    if isinstance(checksum, str) and checksum:
+        return f"md5:{checksum}"
+    return None
+
+
+def _label_product_size(label_status: dict[str, Any]) -> int | None:
+    if not label_status.get("describes_product"):
+        return None
+    size = label_status.get("summary", {}).get("product_file_size_bytes")
+    if isinstance(size, int):
+        return size
+    return None
 
 
 def _checksum_status(

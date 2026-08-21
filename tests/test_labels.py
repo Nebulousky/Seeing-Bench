@@ -62,6 +62,13 @@ def test_parse_pds4_xml_label_extracts_projection_bounds_resolution_and_image_fi
           <img:sample_bit_mask xmlns:img="http://pds.nasa.gov/pds4/img/v1">
             2#11111111111111111111111111111111
           </img:sample_bit_mask>
+          <File_Area_Observational>
+            <File>
+              <file_name>WAC_EMP_643NM_E300N3150_304P.IMG</file_name>
+              <file_size unit="byte">1996295040</file_size>
+              <md5_checksum>60441ac7849b2b152dc78510ba89cc68</md5_checksum>
+            </File>
+          </File_Area_Observational>
           <Axis_Array><axis_name>Line</axis_name><elements>18240</elements></Axis_Array>
           <Axis_Array><axis_name>Sample</axis_name><elements>27360</elements></Axis_Array>
         </Product_Observational>
@@ -81,6 +88,9 @@ def test_parse_pds4_xml_label_extracts_projection_bounds_resolution_and_image_fi
     assert summary["line_samples"] == 27360
     assert summary["sample_type"] == "IEEE754LSBSingle"
     assert summary["sample_bits"] == 32
+    assert summary["product_file_name"] == "WAC_EMP_643NM_E300N3150_304P.IMG"
+    assert summary["product_file_size_bytes"] == 1996295040
+    assert summary["product_md5_checksum"] == "60441ac7849b2b152dc78510ba89cc68"
 
 
 def test_label_coverage_handles_negative_roi_longitude_against_east_longitudes() -> None:

@@ -71,6 +71,12 @@ def _parse_pds4_xml_label(text: str) -> dict[str, Any]:
             fields["sample_type"] = value
         elif name == "sample_bit_mask":
             fields["sample_bits"] = value.count("1")
+        elif name == "file_name":
+            fields["product_file_name"] = value
+        elif name == "file_size":
+            fields["product_file_size_bytes"] = _parse_value(value)
+        elif name == "md5_checksum":
+            fields["product_md5_checksum"] = value
         elif name == "axis_name":
             axis_name = value.lower()
         elif name == "elements" and axis_name is not None:
@@ -144,6 +150,9 @@ def label_summary(fields: dict[str, Any]) -> dict[str, Any]:
         "line_samples": fields.get("line_samples"),
         "sample_type": fields.get("sample_type"),
         "sample_bits": fields.get("sample_bits"),
+        "product_file_name": fields.get("product_file_name"),
+        "product_file_size_bytes": fields.get("product_file_size_bytes"),
+        "product_md5_checksum": fields.get("product_md5_checksum"),
     }
 
 

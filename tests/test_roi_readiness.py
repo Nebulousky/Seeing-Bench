@@ -219,6 +219,95 @@ def test_roi_readiness_blocks_incompatible_label_metadata(tmp_path: Path) -> Non
     )
 
 
+def test_roi_readiness_uses_matching_label_checksum_and_size(tmp_path: Path) -> None:
+    payload = b"tile bytes\n"
+    roi_path = tmp_path / "roi.json"
+    roi_path.write_text(json.dumps(_valid_roi_data()), encoding="utf-8")
+    manifest_path = tmp_path / "manifests" / "terrain.json"
+    manifest_path.parent.mkdir()
+    manifest = _manifest_data(checksum=None)
+    manifest["product_files"] = [
+        {
+            "name": "terrain tile",
+            "url": "https://example.invalid/terrain/tile.img",
+            "local_path": "data/tile.img",
+            "checksum": None,
+            "label_local_path": "data/metadata/tile.xml",
+        }
+    ]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    product_path = tmp_path / "cache" / "data" / "tile.img"
+    product_path.parent.mkdir(parents=True)
+    product_path.write_bytes(payload)
+    label_path = tmp_path / "cache" / "data" / "metadata" / "tile.xml"
+    label_path.parent.mkdir(parents=True)
+    label_path.write_text(
+        _compatible_xml_label_text(
+            file_name="tile.img",
+            file_size=len(payload),
+            md5=hashlib.md5(payload).hexdigest(),
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_roi_readiness_report(
+        roi_path,
+        cache_root=tmp_path / "cache",
+        manifest_root=tmp_path,
+    )
+
+    file_status = report["products"][0]["files"][0]
+    assert file_status["label_expected_size_bytes"] == len(payload)
+    assert file_status["label_declared_checksum"] == "md5:" + hashlib.md5(payload).hexdigest()
+    assert file_status["size_status"] == "ok"
+    assert file_status["checksum_status"] == "ok"
+    assert file_status["label_metadata"]["describes_product"]
+
+
+def test_roi_readiness_does_not_apply_label_checksum_to_different_product(tmp_path: Path) -> None:
+    payload = b"tile bytes\n"
+    roi_path = tmp_path / "roi.json"
+    roi_path.write_text(json.dumps(_valid_roi_data()), encoding="utf-8")
+    manifest_path = tmp_path / "manifests" / "terrain.json"
+    manifest_path.parent.mkdir()
+    manifest = _manifest_data(checksum=None)
+    manifest["product_files"] = [
+        {
+            "name": "terrain browse",
+            "url": "https://example.invalid/terrain/tile.tif",
+            "local_path": "data/tile.tif",
+            "checksum": None,
+            "label_local_path": "data/metadata/tile.xml",
+        }
+    ]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    product_path = tmp_path / "cache" / "data" / "tile.tif"
+    product_path.parent.mkdir(parents=True)
+    product_path.write_bytes(payload)
+    label_path = tmp_path / "cache" / "data" / "metadata" / "tile.xml"
+    label_path.parent.mkdir(parents=True)
+    label_path.write_text(
+        _compatible_xml_label_text(
+            file_name="tile.img",
+            file_size=len(payload),
+            md5=hashlib.md5(payload).hexdigest(),
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_roi_readiness_report(
+        roi_path,
+        cache_root=tmp_path / "cache",
+        manifest_root=tmp_path,
+    )
+
+    file_status = report["products"][0]["files"][0]
+    assert file_status["label_expected_size_bytes"] is None
+    assert file_status["label_declared_checksum"] is None
+    assert file_status["checksum_status"] == "not_declared"
+    assert not file_status["label_metadata"]["describes_product"]
+
+
 def test_resolve_manifest_cache_path_uses_cache_root() -> None:
     manifest = _manifest_data(checksum=None)
     resolved = resolve_manifest_cache_path(
@@ -453,4 +542,23 @@ def _compatible_label_text() -> str:
     SAMPLE_TYPE = LSB_INTEGER
     SAMPLE_BITS = 16
     END
+    """
+
+
+def _compatible_xml_label_text(file_name: str, file_size: int, md5: str) -> str:
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+    <Product_Observational xmlns:cart="http://pds.nasa.gov/pds4/cart/v1">
+      <cart:Bounding_Coordinates>
+        <cart:west_bounding_coordinate unit="deg">270.0</cart:west_bounding_coordinate>
+        <cart:east_bounding_coordinate unit="deg">360.0</cart:east_bounding_coordinate>
+        <cart:north_bounding_coordinate unit="deg">60.0</cart:north_bounding_coordinate>
+        <cart:south_bounding_coordinate unit="deg">0.0</cart:south_bounding_coordinate>
+      </cart:Bounding_Coordinates>
+      <cart:map_projection_name>Equirectangular</cart:map_projection_name>
+      <cart:pixel_scale_x unit="m/pixel">99.75</cart:pixel_scale_x>
+      <Axis_Array><axis_name>Line</axis_name><elements>18240</elements></Axis_Array>
+      <Axis_Array><axis_name>Sample</axis_name><elements>27360</elements></Axis_Array>
+      <File><file_name>{file_name}</file_name><file_size unit="byte">{file_size}</file_size>
+      <md5_checksum>{md5}</md5_checksum></File>
+    </Product_Observational>
     """
