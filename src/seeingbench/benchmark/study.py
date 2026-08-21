@@ -127,6 +127,7 @@ class ReferenceComparativeStudyConfig:
     case_dir: Path
     reference_path: Path
     algorithms: tuple[StudyAlgorithmConfig, ...]
+    reference_metadata_path: Path | None = None
     frequency_bins: int = 24
     local_block_size_px: int = 32
     register_translation: bool = False
@@ -149,6 +150,9 @@ class ReferenceComparativeStudyConfig:
         config = cls(
             case_dir=_resolve_config_path(base_dir, str(data["case"])),
             reference_path=_resolve_config_path(base_dir, str(data["reference"])),
+            reference_metadata_path=None
+            if data.get("reference_metadata") is None
+            else _resolve_config_path(base_dir, str(data["reference_metadata"])),
             algorithms=tuple(
                 StudyAlgorithmConfig.from_dict(_algorithm_dict(item)) for item in algorithm_data
             ),
@@ -316,6 +320,7 @@ def run_reference_comparative_study(
             register_translation=config.register_translation,
             registration_rotation_degrees=config.registration_rotation_degrees or None,
             registration_scales=config.registration_scales or None,
+            reference_metadata_path=config.reference_metadata_path,
             reconstruction_metadata_path=result_dir / "metadata.json",
         )
         save_reference_evaluation_report(report, metrics_path)
@@ -336,6 +341,9 @@ def run_reference_comparative_study(
     summary = {
         "case_dir": str(config.case_dir),
         "reference_path": str(config.reference_path),
+        "reference_metadata_path": None
+        if config.reference_metadata_path is None
+        else str(config.reference_metadata_path),
         "output_root": str(output_root),
         "benchmark_mode": "standalone_reference_study",
         "algorithm_count": len(result_rows),

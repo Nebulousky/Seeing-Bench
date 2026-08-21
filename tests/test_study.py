@@ -238,6 +238,7 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
     study_dir = tmp_path / "reference-study"
     script_path = tmp_path / "external_tool.py"
     config_path = tmp_path / "reference-study.json"
+    reference_metadata_path = tmp_path / "reference-report.json"
     script_path.write_text(
         "\n".join(
             [
@@ -275,11 +276,16 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
         )
         == 0
     )
+    reference_metadata_path.write_text(
+        json.dumps({"limitations": ["local_linear_orthographic_projection"]}),
+        encoding="utf-8",
+    )
     config_path.write_text(
         json.dumps(
             {
                 "case": str(case_dir),
                 "reference": str(case_dir / "truth" / "latent.tif"),
+                "reference_metadata": str(reference_metadata_path),
                 "frequency_bins": 6,
                 "register_translation": True,
                 "registration_rotation_degrees": [0.0],
@@ -323,11 +329,15 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
     assert summary["registration_rotation_degrees"] == [0.0]
     assert summary["registration_scales"] == [1.0]
     assert summary["reference_path"] == str(case_dir / "truth" / "latent.tif")
+    assert summary["reference_metadata_path"] == str(reference_metadata_path)
     assert {row["kind"] for row in summary["algorithms"]} == {"builtin", "command"}
     assert len(comparison["rows"]) == 2
     for row in summary["algorithms"]:
         metrics = json.loads(Path(row["metrics"]).read_text(encoding="utf-8"))
         assert metrics["metadata"]["benchmark_mode"] == "standalone_reference"
         assert metrics["metadata"]["registration"]["method"] == "global_similarity_grid_search"
+        assert metrics["metadata"]["reference_limitations"] == [
+            "local_linear_orthographic_projection"
+        ]
         assert metrics["metadata"]["reconstruction_runtime_s"] is not None
         assert metrics["metadata"]["validation_boundary"]

@@ -1,6 +1,7 @@
 {
   "case": "../../benchmarks/generated/demo",
   "reference": "../../outputs/copernicus-telescope-reference/telescope-matched-reflectance.npy",
+  "reference_metadata": "../../outputs/copernicus-telescope-reference/telescope-reference-report.json",
   "frequency_bins": 24,
   "local_block_size_px": 32,
   "register_translation": true,

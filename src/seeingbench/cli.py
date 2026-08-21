@@ -161,6 +161,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="evaluate a reconstruction against a standalone reference image",
     )
     evaluate_reference.add_argument("--reference", required=True, type=Path)
+    evaluate_reference.add_argument("--reference-metadata", type=Path)
     evaluate_reference.add_argument("--reconstruction", required=True, type=Path)
     evaluate_reference.add_argument("--algorithm", default="manual")
     evaluate_reference.add_argument("--output", required=True, type=Path)
@@ -501,6 +502,7 @@ def _evaluate_reference(args: argparse.Namespace) -> int:
         register_translation=args.register_translation,
         registration_rotation_degrees=args.registration_rotation_degrees,
         registration_scales=args.registration_scales,
+        reference_metadata_path=args.reference_metadata,
     )
     save_reference_evaluation_report(report, args.output)
     return 0

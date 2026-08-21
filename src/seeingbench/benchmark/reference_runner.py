@@ -34,6 +34,7 @@ def evaluate_reference_reconstruction(
     register_translation: bool = False,
     registration_rotation_degrees: Sequence[float] | None = None,
     registration_scales: Sequence[float] | None = None,
+    reference_metadata_path: Path | None = None,
     reconstruction_metadata_path: Path | None = None,
 ) -> EvaluationReport:
     """Evaluate a reconstruction directly against a standalone reference image."""
@@ -75,7 +76,11 @@ def evaluate_reference_reconstruction(
 
     frequency_curve = radial_frequency_correlation(reference, reconstruction, bins=frequency_bins)
     recovery_limit = frequency_recovery_limit(frequency_curve, threshold=0.5)
-    reconstruction_metadata = _load_reconstruction_metadata(reconstruction_metadata_path)
+    reference_metadata = _load_optional_json_metadata(reference_metadata_path, "reference metadata")
+    reconstruction_metadata = _load_optional_json_metadata(
+        reconstruction_metadata_path,
+        "reconstruction metadata",
+    )
     elapsed_s = time.perf_counter() - started
     return EvaluationReport(
         algorithm=algorithm,
@@ -94,6 +99,11 @@ def evaluate_reference_reconstruction(
         warp_recovery=None,
         metadata={
             "reference_path": str(reference_path),
+            "reference_metadata_path": None
+            if reference_metadata_path is None
+            else str(reference_metadata_path),
+            "reference_metadata": reference_metadata,
+            "reference_limitations": _metadata_list(reference_metadata, "limitations"),
             "reconstruction_path": str(reconstruction_path),
             "benchmark_mode": "standalone_reference",
             "registration": registration,
@@ -127,13 +137,18 @@ def _load_reference_array(path: Path) -> np.ndarray:
     return cast(np.ndarray, array)
 
 
-def _load_reconstruction_metadata(path: Path | None) -> dict[str, Any]:
+def _load_optional_json_metadata(path: Path | None, label: str) -> dict[str, Any]:
     if path is None or not path.exists():
         return {}
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(data, dict):
-        raise ValueError(f"reconstruction metadata must be a JSON object: {path}")
+        raise ValueError(f"{label} must be a JSON object: {path}")
     return data
+
+
+def _metadata_list(metadata: dict[str, Any], key: str) -> list[Any]:
+    value = metadata.get(key, [])
+    return value if isinstance(value, list) else []
 
 
 def _optional_float(value: Any) -> float | None:

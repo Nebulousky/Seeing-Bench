@@ -82,9 +82,19 @@ def test_reference_evaluation_uses_reconstruction_metadata_runtime(tmp_path: Pat
     reference = crater_field((32, 32), seed=18)
     reference_path = tmp_path / "reference.npy"
     reconstruction_path = tmp_path / "reconstruction.npy"
+    reference_metadata_path = tmp_path / "reference-report.json"
     metadata_path = tmp_path / "metadata.json"
     np.save(reference_path, reference)
     np.save(reconstruction_path, reference.copy())
+    reference_metadata_path.write_text(
+        json.dumps(
+            {
+                "reference_count": 1,
+                "limitations": ["local_linear_orthographic_projection"],
+            }
+        ),
+        encoding="utf-8",
+    )
     metadata_path.write_text(
         json.dumps({"adapter": "external", "runtime_s": 1.25}),
         encoding="utf-8",
@@ -95,20 +105,28 @@ def test_reference_evaluation_uses_reconstruction_metadata_runtime(tmp_path: Pat
         reconstruction_path,
         algorithm="external",
         frequency_bins=6,
+        reference_metadata_path=reference_metadata_path,
         reconstruction_metadata_path=metadata_path,
     )
 
     assert report.metadata["reconstruction_runtime_s"] == 1.25
     assert report.metadata["reconstruction_metadata"]["adapter"] == "external"
+    assert report.metadata["reference_metadata"]["reference_count"] == 1
+    assert report.metadata["reference_limitations"] == ["local_linear_orthographic_projection"]
 
 
 def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
     reference = crater_field((32, 32), seed=19)
     reference_path = tmp_path / "reference.npy"
     reconstruction_path = tmp_path / "reconstruction.npy"
+    reference_metadata_path = tmp_path / "reference-report.json"
     metrics_path = tmp_path / "metrics.json"
     np.save(reference_path, reference)
     np.save(reconstruction_path, reference.copy())
+    reference_metadata_path.write_text(
+        json.dumps({"limitations": ["simple_lambertian_illumination_model"]}),
+        encoding="utf-8",
+    )
 
     assert (
         main(
@@ -116,6 +134,8 @@ def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
                 "evaluate-reference",
                 "--reference",
                 str(reference_path),
+                "--reference-metadata",
+                str(reference_metadata_path),
                 "--reconstruction",
                 str(reconstruction_path),
                 "--algorithm",
@@ -137,4 +157,5 @@ def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
     assert report["algorithm"] == "perfect"
     assert report["metadata"]["benchmark_mode"] == "standalone_reference"
     assert report["metadata"]["registration"]["method"] == "global_similarity_grid_search"
+    assert report["metadata"]["reference_limitations"] == ["simple_lambertian_illumination_model"]
     assert report["image_similarity"]["mse"] == 0.0

@@ -291,6 +291,7 @@ registration:
 ```bash
 seeingbench evaluate-reference \
   --reference outputs/copernicus-telescope-reference/telescope-matched-reflectance.npy \
+  --reference-metadata outputs/copernicus-telescope-reference/telescope-reference-report.json \
   --reconstruction outputs/m51-run/reconstruction.tif \
   --algorithm m51 \
   --output outputs/m51-run/reference-metrics.json \
