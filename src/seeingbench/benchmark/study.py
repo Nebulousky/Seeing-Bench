@@ -332,6 +332,7 @@ def run_comparative_study(
     """Run a configured comparative study and write metrics/comparison artifacts."""
 
     config.validate()
+    _assert_study_readiness(config)
     output_root.mkdir(parents=True, exist_ok=True)
     result_rows: list[dict[str, Any]] = []
     metrics_paths: list[Path] = []
@@ -395,6 +396,7 @@ def run_reference_comparative_study(
     """Run adapters and compare reconstructions against a standalone reference."""
 
     config.validate()
+    _assert_study_readiness(config)
     output_root.mkdir(parents=True, exist_ok=True)
     result_rows: list[dict[str, Any]] = []
     metrics_paths: list[Path] = []
@@ -553,6 +555,16 @@ def _algorithm_readiness(algorithm: StudyAlgorithmConfig) -> dict[str, Any]:
         "resolved_version_executable": resolved_version,
         "reason": None if resolved is not None else "command_executable_not_found",
     }
+
+
+def _assert_study_readiness(
+    config: ComparativeStudyConfig | ReferenceComparativeStudyConfig,
+) -> None:
+    readiness = build_study_tool_readiness(config)
+    if readiness["ready"]:
+        return
+    reasons = ", ".join(str(reason) for reason in readiness["blocking_reasons"])
+    raise RuntimeError(f"study is not ready to run: {reasons}")
 
 
 def _resolve_executable(executable: str) -> str | None:

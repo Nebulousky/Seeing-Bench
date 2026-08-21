@@ -180,6 +180,8 @@ return code, stdout, and stderr are recorded in the result metadata and carried 
 evaluation reports. `existing_result` entries provide a `result_dir` that already follows
 the standard result contract, allowing manually run GUI tools such as third-party stackers
 to be copied into a study without rerunning them.
+Configured studies preflight command executables and existing result directories before any
+algorithm is run, so missing local tools do not leave partial study outputs.
 Relative `case` paths are resolved from the config file's parent directory.
 
 `seeingbench study tool-readiness` accepts the same configured-study files, including

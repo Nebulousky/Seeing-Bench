@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 from seeingbench.cli import main
 
 
@@ -330,6 +332,44 @@ def test_cli_configured_study_accepts_utf8_bom_config(tmp_path: Path) -> None:
     summary = json.loads((study_dir / "study-summary.json").read_text(encoding="utf-8"))
     assert summary["algorithm_count"] == 2
     assert summary["provenance"]["git"]["commit"]
+
+
+def test_cli_configured_study_preflights_missing_command_before_running(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "study.json"
+    study_dir = tmp_path / "study"
+    config_path.write_text(
+        json.dumps(
+            {
+                "case": str(tmp_path / "case"),
+                "frequency_bins": 6,
+                "algorithms": [
+                    {"name": "mean_stack", "kind": "builtin", "builtin": "mean_stack"},
+                    {
+                        "name": "missing_tool",
+                        "kind": "command",
+                        "command": ["seeingbench-definitely-missing-tool"],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="command_executable_not_found"):
+        main(
+            [
+                "study",
+                "run-config",
+                "--config",
+                str(config_path),
+                "--output",
+                str(study_dir),
+            ]
+        )
+
+    assert not study_dir.exists()
 
 
 def test_cli_study_tool_readiness_reports_command_availability(tmp_path: Path) -> None:
