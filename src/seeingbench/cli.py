@@ -17,6 +17,7 @@ from seeingbench.benchmark.compare import write_comparison_json, write_compariso
 from seeingbench.benchmark.experiment import load_synthetic_sweep_config, run_synthetic_sweep
 from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
+from seeingbench.benchmark.study import run_builtin_baseline_study
 from seeingbench.datasets.extract import extract_verified_roi_products
 from seeingbench.datasets.manifests import (
     fetch_manifest_metadata,
@@ -123,6 +124,19 @@ def _build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--output", required=True, type=Path)
     compare.add_argument("--format", choices=("markdown", "json"), default="markdown")
     compare.set_defaults(func=_compare)
+
+    study = subparsers.add_parser("study", help="comparative study orchestration")
+    study_subparsers = study.add_subparsers(required=True)
+
+    builtin_baselines = study_subparsers.add_parser(
+        "builtin-baselines",
+        help="run and compare built-in baselines on the same benchmark case",
+    )
+    builtin_baselines.add_argument("--case", required=True, type=Path)
+    builtin_baselines.add_argument("--output", required=True, type=Path)
+    builtin_baselines.add_argument("--frequency-bins", type=int, default=24)
+    builtin_baselines.add_argument("--local-block-size", type=int, default=32)
+    builtin_baselines.set_defaults(func=_study_builtin_baselines)
 
     experiment = subparsers.add_parser("experiment", help="experiment orchestration")
     experiment_subparsers = experiment.add_subparsers(required=True)
@@ -351,6 +365,17 @@ def _compare(args: argparse.Namespace) -> int:
         write_comparison_json(args.inputs, args.output)
     else:
         write_comparison_markdown(args.inputs, args.output)
+    return 0
+
+
+def _study_builtin_baselines(args: argparse.Namespace) -> int:
+    summary = run_builtin_baseline_study(
+        args.case,
+        args.output,
+        frequency_bins=args.frequency_bins,
+        local_block_size_px=args.local_block_size,
+    )
+    sys.stdout.write(f"{json.dumps(summary, indent=2)}\n")
     return 0
 
 

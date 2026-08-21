@@ -113,6 +113,14 @@ It uses the simulation fields above where names match, plus:
 | `noise_sigmas` | array | `[0.0, 0.01, 0.03, 0.05]` | image units | Noise levels crossed with each warp strength. |
 | `local_block_size_px` | integer | `32` | pixels | Block size used by the local block-stack baseline in the sweep. |
 
+## Built-In Comparative Studies
+
+`seeingbench study builtin-baselines` runs `mean_stack`, `translation_stack`, and
+`local_block_stack` against the same benchmark case, evaluates each result with the same
+frequency-bin count, and writes `study-summary.json`, `comparison.json`, and
+`comparison.md`. Reconstruction adapters consume only case input frames; retained truth is
+loaded only by the evaluator after each reconstruction output exists.
+
 ## Validation Rules
 
 - Image arrays must be finite two-dimensional `float64` values.

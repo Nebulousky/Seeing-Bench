@@ -110,6 +110,16 @@ seeingbench compare \
   --output outputs/comparison.md
 ```
 
+Run a reproducible built-in comparative baseline study for one case:
+
+```bash
+seeingbench study builtin-baselines \
+  --case benchmarks/generated/demo \
+  --output outputs/demo-study \
+  --frequency-bins 24 \
+  --local-block-size 32
+```
+
 Run a compact empirical synthetic sweep across seeing and noise settings:
 
 ```bash
