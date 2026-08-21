@@ -92,6 +92,16 @@ The following flags override config-file values:
 The source image size flags `--height` and `--width` apply only when no `--truth` image is
 provided and the CLI generates its built-in synthetic crater field.
 
+## Observation Case Import
+
+`seeingbench import-observation` copies local `.npy`/TIFF frames into
+`input/frame_000001.tif`, `input/frame_000002.tif`, and so on, and writes `metadata.json`
+with `benchmark_mode: real_observation`. It accepts shell-style frame patterns, requires all
+frames to have the same shape, and does not create a `truth/` directory. Optional observation
+metadata is stored under the `observation` key and remains reconstruction-side metadata; any
+standalone orbital/reference image is supplied later to `evaluate-reference` or
+`study run-reference-config`.
+
 ## Synthetic Sweep Config
 
 The experiment command accepts a separate JSON object:

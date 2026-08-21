@@ -58,6 +58,42 @@ def save_simulation_case(result: SimulationResult, root: Path) -> None:
     (root / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
 
+def save_observation_case(
+    frame_paths: list[Path],
+    root: Path,
+    observation_metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Import local observation frames into the reconstruction input contract."""
+
+    if not frame_paths:
+        raise ValueError("observation case requires at least one input frame")
+    input_dir = root / "input"
+    input_dir.mkdir(parents=True, exist_ok=True)
+    frames = [load_grayscale_image(path) for path in frame_paths]
+    shape = frames[0].shape
+    if any(frame.shape != shape for frame in frames):
+        raise ValueError("all observation frames must have the same shape")
+    for index, frame in enumerate(frames, start=1):
+        write_grayscale_tiff(input_dir / f"frame_{index:06d}.tif", frame)
+
+    metadata = {
+        "benchmark_mode": "real_observation",
+        "frame_count": len(frames),
+        "frame_shape": list(shape),
+        "source_frames": [str(path) for path in frame_paths],
+        "observation": observation_metadata or {},
+        "files": {
+            "input_pattern": "input/frame_000001.tif",
+        },
+        "validation_boundary": (
+            "observation case contains reconstruction inputs only; standalone references "
+            "and orbital truth remain evaluator-side data"
+        ),
+    }
+    (root / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    return metadata
+
+
 def load_benchmark_case(root: Path) -> BenchmarkCase:
     """Load the mandatory truth files for a synthetic benchmark case."""
 

@@ -55,6 +55,15 @@ Or use the checked-in default configuration:
 seeingbench simulate --config configs/synthetic-default.json --output benchmarks/generated/demo
 ```
 
+Import local lunar observation frames without creating synthetic truth files:
+
+```bash
+seeingbench import-observation \
+  --output benchmarks/observations/session-001 \
+  --metadata configs/observations/example-lunar-observation.json \
+  path/to/frames/*.tif
+```
+
 Create a simple baseline reconstruction by averaging the input frames:
 
 ```bash

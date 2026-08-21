@@ -12,7 +12,12 @@ from typing import Any
 
 import numpy as np
 
-from seeingbench.benchmark.case import load_benchmark_case, load_input_frame, save_simulation_case
+from seeingbench.benchmark.case import (
+    load_benchmark_case,
+    load_input_frame,
+    save_observation_case,
+    save_simulation_case,
+)
 from seeingbench.benchmark.compare import write_comparison_json, write_comparison_markdown
 from seeingbench.benchmark.experiment import load_synthetic_sweep_config, run_synthetic_sweep
 from seeingbench.benchmark.reference_runner import (
@@ -39,6 +44,7 @@ from seeingbench.datasets.readiness import build_roi_download_plan, build_roi_re
 from seeingbench.datasets.reproject import reproject_extracted_roi_products
 from seeingbench.geometry.spice import build_spice_readiness_report, write_spice_readiness_report
 from seeingbench.io.images import load_grayscale_image
+from seeingbench.observations import load_observation_metadata
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
     CommandLineAdapter,
@@ -80,6 +86,15 @@ def _build_parser() -> argparse.ArgumentParser:
     simulate.add_argument("--warp-scale", type=float)
     simulate.add_argument("--sensor-downsample", type=int)
     simulate.set_defaults(func=_simulate)
+
+    import_observation = subparsers.add_parser(
+        "import-observation",
+        help="import local observation frames into the reconstruction input contract",
+    )
+    import_observation.add_argument("--output", required=True, type=Path)
+    import_observation.add_argument("--metadata", type=Path)
+    import_observation.add_argument("frames", nargs="+", type=Path)
+    import_observation.set_defaults(func=_import_observation)
 
     baseline = subparsers.add_parser("baseline-stack", help="create a mean-stack baseline result")
     baseline.add_argument("--case", required=True, type=Path)
@@ -336,6 +351,14 @@ def _simulate(args: argparse.Namespace) -> int:
     if args.config is not None:
         result.metadata["config_source"] = str(args.config)
     save_simulation_case(result, args.output)
+    return 0
+
+
+def _import_observation(args: argparse.Namespace) -> int:
+    frame_paths = _expand_path_patterns(args.frames)
+    metadata = load_observation_metadata(args.metadata) if args.metadata is not None else None
+    report = save_observation_case(frame_paths, args.output, metadata)
+    sys.stdout.write(f"{json.dumps(report, indent=2)}\n")
     return 0
 
 
