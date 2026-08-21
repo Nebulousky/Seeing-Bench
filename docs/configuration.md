@@ -139,6 +139,8 @@ Python, NumPy, platform, process, Git commit, branch, origin URL, dirty-state, a
 status information so runs can be tied back to the exact source tree.
 Markdown reports render the Git commit/dirty state and any standalone-reference
 limitations copied from `--reference-metadata`.
+Comparison JSON carries the same per-row Git and reference-limitation fields, and
+comparison Markdown renders the union of reference limitations before ranking results.
 
 `seeingbench run-command` executes an explicit external command and requires it to write
 `reconstruction.tif` into the declared result directory. Command arguments may use `{case}`

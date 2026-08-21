@@ -21,6 +21,9 @@ class ComparisonRow:
     false_detail_fraction: float
     reconstruction_runtime_s: float | None
     evaluation_runtime_s: float | None
+    git_commit: str | None
+    git_dirty: bool | None
+    reference_limitations: tuple[str, ...]
     score: float
 
     def to_dict(self) -> dict[str, Any]:
@@ -34,6 +37,9 @@ class ComparisonRow:
             "false_detail_fraction": self.false_detail_fraction,
             "reconstruction_runtime_s": self.reconstruction_runtime_s,
             "evaluation_runtime_s": self.evaluation_runtime_s,
+            "git_commit": self.git_commit,
+            "git_dirty": self.git_dirty,
+            "reference_limitations": list(self.reference_limitations),
             "score": self.score,
         }
 
@@ -52,6 +58,9 @@ def compare_metric_files(paths: list[Path]) -> dict[str, Any]:
             "spectral-fidelity limit) * (1 - false detail fraction)"
         ),
         "leaders": _leaders(rows),
+        "reference_limitations": sorted(
+            {limitation for row in rows for limitation in row.reference_limitations}
+        ),
         "rows": ranked_dicts,
     }
 
@@ -79,6 +88,15 @@ def render_comparison_markdown(comparison: dict[str, Any]) -> str:
         "",
         f"Ranking basis: {comparison['ranking_basis']}",
         "",
+    ]
+    if comparison.get("reference_limitations"):
+        lines += [
+            "## Reference Limitations",
+            "",
+            *[f"- `{limitation}`" for limitation in comparison["reference_limitations"]],
+            "",
+        ]
+    lines += [
         "## Direct Answers",
         "",
         *[
@@ -142,6 +160,9 @@ def _row_from_report(metrics_path: Path) -> ComparisonRow:
     structure = report["structural_accuracy"]
     frequency = report["frequency_recovery"]
     false_detail = report["false_detail"]
+    metadata = report.get("metadata", {})
+    provenance = metadata.get("provenance", {})
+    git = provenance.get("git", {}) if isinstance(provenance, dict) else {}
     ssim = float(image["ssim_global"])
     gradient = float(structure["gradient_correlation"])
     frequency_limit = float(frequency["correlation_0_5_limit_fraction"])
@@ -155,12 +176,11 @@ def _row_from_report(metrics_path: Path) -> ComparisonRow:
         gradient_correlation=gradient,
         frequency_limit_fraction=frequency_limit,
         false_detail_fraction=false_fraction,
-        reconstruction_runtime_s=_optional_float(
-            report.get("metadata", {}).get("reconstruction_runtime_s")
-        ),
-        evaluation_runtime_s=_optional_float(
-            report.get("metadata", {}).get("evaluation_runtime_s")
-        ),
+        reconstruction_runtime_s=_optional_float(metadata.get("reconstruction_runtime_s")),
+        evaluation_runtime_s=_optional_float(metadata.get("evaluation_runtime_s")),
+        git_commit=None if not isinstance(git, dict) else _optional_str(git.get("commit")),
+        git_dirty=None if not isinstance(git, dict) else _optional_bool(git.get("dirty")),
+        reference_limitations=_metadata_str_tuple(metadata, "reference_limitations"),
         score=score,
     )
 
@@ -210,6 +230,21 @@ def _leader_text(leader: dict[str, Any] | None, value_key: str) -> str:
 
 def _optional_float(value: Any) -> float | None:
     return None if value is None else float(value)
+
+
+def _optional_str(value: Any) -> str | None:
+    return None if value is None else str(value)
+
+
+def _optional_bool(value: Any) -> bool | None:
+    return None if value is None else bool(value)
+
+
+def _metadata_str_tuple(metadata: dict[str, Any], key: str) -> tuple[str, ...]:
+    value = metadata.get(key, [])
+    if not isinstance(value, list):
+        return ()
+    return tuple(str(item) for item in value)
 
 
 def _fmt(value: float | None) -> str:

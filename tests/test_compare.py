@@ -15,6 +15,7 @@ def test_compare_ranks_higher_recovery_and_lower_false_detail(tmp_path: Path) ->
     assert comparison["rows"][0]["algorithm"] == "strong"
     assert "false detail" in comparison["ranking_basis"]
     assert comparison["rows"][0]["reconstruction_runtime_s"] == 2.0
+    assert comparison["rows"][0]["git_commit"] == "abc123"
     assert comparison["leaders"]["best_score"]["algorithm"] == "strong"
     assert comparison["leaders"]["best_frequency_recovery"]["algorithm"] == "strong"
     assert comparison["leaders"]["least_false_detail"]["algorithm"] == "strong"
@@ -28,6 +29,8 @@ def test_comparison_markdown_contains_ranked_table(tmp_path: Path) -> None:
 
     assert "# SeeingBench Comparison" in markdown
     assert "## Direct Answers" in markdown
+    assert "## Reference Limitations" in markdown
+    assert "`local_linear_orthographic_projection`" in markdown
     assert "| 1 | `a` |" in markdown
     assert "Recon Runtime" in markdown
 
@@ -109,6 +112,13 @@ def _write_report(
                 "metadata": {
                     "reconstruction_runtime_s": runtime_s,
                     "evaluation_runtime_s": 0.1,
+                    "reference_limitations": ["local_linear_orthographic_projection"],
+                    "provenance": {
+                        "git": {
+                            "commit": "abc123",
+                            "dirty": False,
+                        }
+                    },
                 },
             }
         ),
