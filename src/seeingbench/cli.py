@@ -21,7 +21,11 @@ from seeingbench.benchmark.reference_runner import (
 )
 from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
-from seeingbench.benchmark.study import run_builtin_baseline_study
+from seeingbench.benchmark.study import (
+    load_comparative_study_config,
+    run_builtin_baseline_study,
+    run_comparative_study,
+)
 from seeingbench.datasets.extract import extract_verified_roi_products
 from seeingbench.datasets.manifests import (
     fetch_manifest_metadata,
@@ -166,6 +170,14 @@ def _build_parser() -> argparse.ArgumentParser:
     builtin_baselines.add_argument("--frequency-bins", type=int, default=24)
     builtin_baselines.add_argument("--local-block-size", type=int, default=32)
     builtin_baselines.set_defaults(func=_study_builtin_baselines)
+
+    run_study_config = study_subparsers.add_parser(
+        "run-config",
+        help="run a JSON-configured comparative reconstruction study",
+    )
+    run_study_config.add_argument("--config", required=True, type=Path)
+    run_study_config.add_argument("--output", required=True, type=Path)
+    run_study_config.set_defaults(func=_study_run_config)
 
     experiment = subparsers.add_parser("experiment", help="experiment orchestration")
     experiment_subparsers = experiment.add_subparsers(required=True)
@@ -447,6 +459,13 @@ def _study_builtin_baselines(args: argparse.Namespace) -> int:
         frequency_bins=args.frequency_bins,
         local_block_size_px=args.local_block_size,
     )
+    sys.stdout.write(f"{json.dumps(summary, indent=2)}\n")
+    return 0
+
+
+def _study_run_config(args: argparse.Namespace) -> int:
+    config = load_comparative_study_config(args.config)
+    summary = run_comparative_study(config, args.output)
     sys.stdout.write(f"{json.dumps(summary, indent=2)}\n")
     return 0
 

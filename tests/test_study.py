@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 from seeingbench.cli import main
@@ -69,3 +70,162 @@ def test_cli_builtin_baseline_study_runs_and_compares_all_baselines(tmp_path: Pa
         assert metrics["metadata"]["reconstruction_runtime_s"] is not None
         assert metrics["metadata"]["evaluation_runtime_s"] > 0.0
         assert (Path(row["result_dir"]) / "reconstruction.tif").exists()
+
+
+def test_cli_configured_study_runs_builtin_and_external_command(tmp_path: Path) -> None:
+    case_dir = tmp_path / "case"
+    study_dir = tmp_path / "study"
+    script_path = tmp_path / "external_tool.py"
+    config_path = tmp_path / "study.json"
+    script_path.write_text(
+        "\n".join(
+            [
+                "from pathlib import Path",
+                "import shutil",
+                "import sys",
+                "case = Path(sys.argv[1])",
+                "result = Path(sys.argv[2])",
+                "result.mkdir(parents=True, exist_ok=True)",
+                "shutil.copy2(case / 'input' / 'frame_000001.tif', result / 'reconstruction.tif')",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "simulate",
+                "--output",
+                str(case_dir),
+                "--frames",
+                "3",
+                "--height",
+                "32",
+                "--width",
+                "32",
+                "--seed",
+                "23",
+                "--noise-sigma",
+                "0.0",
+                "--warp-scale",
+                "0.2",
+            ]
+        )
+        == 0
+    )
+    config_path.write_text(
+        json.dumps(
+            {
+                "case": str(case_dir),
+                "frequency_bins": 6,
+                "algorithms": [
+                    {
+                        "name": "mean_stack",
+                        "kind": "builtin",
+                        "builtin": "mean_stack",
+                    },
+                    {
+                        "name": "external_echo",
+                        "kind": "command",
+                        "command": [
+                            sys.executable,
+                            str(script_path),
+                            "{case}",
+                            "{result}",
+                        ],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "study",
+                "run-config",
+                "--config",
+                str(config_path),
+                "--output",
+                str(study_dir),
+            ]
+        )
+        == 0
+    )
+
+    summary = json.loads((study_dir / "study-summary.json").read_text(encoding="utf-8"))
+    comparison = json.loads((study_dir / "comparison.json").read_text(encoding="utf-8"))
+    assert summary["algorithm_count"] == 2
+    assert {row["algorithm"] for row in summary["algorithms"]} == {
+        "mean_stack",
+        "external_echo",
+    }
+    assert {row["kind"] for row in summary["algorithms"]} == {"builtin", "command"}
+    assert len(comparison["rows"]) == 2
+    external = next(row for row in summary["algorithms"] if row["algorithm"] == "external_echo")
+    metadata = json.loads((Path(external["result_dir"]) / "metadata.json").read_text())
+    assert metadata["adapter"] == "external_echo"
+    assert metadata["runtime_s"] > 0.0
+
+
+def test_cli_configured_study_accepts_utf8_bom_config(tmp_path: Path) -> None:
+    case_dir = tmp_path / "case"
+    study_dir = tmp_path / "study"
+    config_path = tmp_path / "study.json"
+
+    assert (
+        main(
+            [
+                "simulate",
+                "--output",
+                str(case_dir),
+                "--frames",
+                "2",
+                "--height",
+                "32",
+                "--width",
+                "32",
+                "--seed",
+                "29",
+                "--noise-sigma",
+                "0.0",
+                "--warp-scale",
+                "0.1",
+            ]
+        )
+        == 0
+    )
+    payload = json.dumps(
+        {
+            "case": str(case_dir),
+            "frequency_bins": 6,
+            "algorithms": [
+                {"name": "mean_stack", "kind": "builtin", "builtin": "mean_stack"},
+                {
+                    "name": "translation_stack",
+                    "kind": "builtin",
+                    "builtin": "translation_stack",
+                },
+            ],
+        }
+    )
+    config_path.write_bytes(b"\xef\xbb\xbf" + payload.encode("utf-8"))
+
+    assert (
+        main(
+            [
+                "study",
+                "run-config",
+                "--config",
+                str(config_path),
+                "--output",
+                str(study_dir),
+            ]
+        )
+        == 0
+    )
+
+    summary = json.loads((study_dir / "study-summary.json").read_text(encoding="utf-8"))
+    assert summary["algorithm_count"] == 2

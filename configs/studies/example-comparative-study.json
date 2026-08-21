@@ -1,0 +1,27 @@
+{
+  "case": "../../benchmarks/generated/demo",
+  "frequency_bins": 24,
+  "local_block_size_px": 32,
+  "algorithms": [
+    {
+      "name": "mean_stack",
+      "kind": "builtin",
+      "builtin": "mean_stack"
+    },
+    {
+      "name": "translation_stack",
+      "kind": "builtin",
+      "builtin": "translation_stack"
+    },
+    {
+      "name": "external_placeholder",
+      "kind": "command",
+      "command": [
+        "python",
+        "path/to/external_tool.py",
+        "{case}",
+        "{result}"
+      ]
+    }
+  ]
+}

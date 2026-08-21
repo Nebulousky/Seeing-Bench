@@ -120,6 +120,15 @@ seeingbench study builtin-baselines \
   --local-block-size 32
 ```
 
+Run a configured comparative study that can mix built-in adapters and explicit external
+commands:
+
+```bash
+seeingbench study run-config \
+  --config configs/studies/example-comparative-study.json \
+  --output outputs/configured-study
+```
+
 Run a compact empirical synthetic sweep across seeing and noise settings:
 
 ```bash
