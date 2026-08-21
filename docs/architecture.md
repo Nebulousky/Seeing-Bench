@@ -64,14 +64,17 @@ TIFF/NumPy benchmark export, baseline mean-stack adapter, global and local block
 stack adapters, image/structure/frequency/false-detail/warp metrics, diffraction-relative
 frequency interpretation, standalone-reference evaluation, Markdown reports, comparison
 reports, richer diagnostics, CLI commands, explicit external command execution, built-in
-baseline comparative studies, and unit tests. Phase 2 now has
-manifests, metadata/label fetching, ROI readiness checks for local cache presence and declared checksums, explicit no-download ROI
-download plans, verified local IMG window extraction, and basic map-window reprojection
-into ROI reference grids. Phase 3 has partial real-observation metadata parsing and a
-telescope-diffraction matching renderer for local ROI references, plus SPICE kernel
-readiness checks against local NAIF checksum tables. LRO/LOLA/NAC/SPICE Earth-view
-rendering is not implemented, and the dataset commands do not download bulk products unless
-a future explicit downloader is added.
+baseline comparative studies, and unit tests. Phase 2 now has manifests,
+metadata/label fetching, ROI readiness checks for local cache presence and declared
+checksums, explicit no-download ROI download plans, verified local IMG window extraction,
+basic map-window reprojection into ROI reference grids, guarded product downloading with
+explicit byte budgets, and PDS label provenance carried through readiness, extraction, and
+reference reports. Phase 3 has real-observation metadata parsing, SPICE readiness and
+observation-geometry reports, a telescope-diffraction matching renderer for local ROI
+references, optional local orthographic projection, and optional simple terrain-derived
+Lambertian illumination. Full-disk spherical rendering, high-fidelity lunar photometry, and
+real third-party application automation still require local datasets/tools and further
+implementation.
 
 ## Related
 
