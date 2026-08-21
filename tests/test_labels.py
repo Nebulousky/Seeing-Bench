@@ -7,6 +7,7 @@ from seeingbench.datasets.labels import (
     label_resolution_status,
     label_summary,
     parse_pds_label_text,
+    roi_pixel_window,
 )
 
 
@@ -102,3 +103,41 @@ def test_label_resolution_reports_coarser_than_target() -> None:
     assert label_resolution_status(fields, target_resolution_m_per_px=100.0) == (
         "coarser_than_target"
     )
+
+
+def test_roi_pixel_window_plans_clamped_tile_window() -> None:
+    fields = parse_pds_label_text(
+        """
+        MINIMUM_LATITUDE = 0.0
+        MAXIMUM_LATITUDE = 60.0
+        WESTERNMOST_LONGITUDE = 270.0
+        EASTERNMOST_LONGITUDE = 360.0
+        MAP_SCALE = 99.75 <METERS/PIXEL>
+        LINES = 18240
+        LINE_SAMPLES = 27360
+        """
+    )
+
+    window = roi_pixel_window(
+        fields,
+        center_lat_deg=9.62,
+        center_lon_deg=-20.08,
+        width_km=220.0,
+        height_km=220.0,
+    )
+
+    assert window["status"] == "ok"
+    assert window["coverage_status"] == "ok"
+    assert 14000 <= window["row_start"] < window["row_stop"] <= 17000
+    assert 20000 <= window["col_start"] < window["col_stop"] <= 22500
+    assert window["row_count"] == pytest.approx(2206, abs=2)
+    assert window["col_count"] == pytest.approx(2206, abs=2)
+
+
+def test_roi_pixel_window_reports_unknown_without_dimensions() -> None:
+    fields = parse_pds_label_text("MAP_SCALE = 99.75")
+
+    assert roi_pixel_window(fields, 0.0, 0.0, 10.0, 10.0) == {
+        "status": "unknown",
+        "reason": "missing_label_fields",
+    }

@@ -171,6 +171,8 @@ def test_roi_readiness_reports_file_level_product_status(tmp_path: Path) -> None
     assert product["files"][0]["size_status"] == "ok"
     assert product["files"][0]["label_metadata"]["coverage_status"] == "ok"
     assert product["files"][0]["label_metadata"]["resolution_status"] == "ok"
+    assert product["files"][0]["label_metadata"]["roi_pixel_window"]["status"] == "ok"
+    assert product["files"][0]["label_metadata"]["roi_pixel_window"]["row_count"] > 0
     assert product["files"][1]["presence"] == "missing"
 
 

@@ -13,6 +13,7 @@ from seeingbench.datasets.labels import (
     label_resolution_status,
     label_summary,
     parse_pds_label_file,
+    roi_pixel_window,
 )
 from seeingbench.datasets.manifests import DatasetManifest, ProductFile, load_manifest
 
@@ -382,6 +383,13 @@ def _label_status(
         "local_path": str(label_path),
         "coverage_status": coverage,
         "resolution_status": resolution,
+        "roi_pixel_window": roi_pixel_window(
+            fields,
+            roi.center_lat_deg,
+            roi.center_lon_deg,
+            roi.width_km,
+            roi.height_km,
+        ),
         "summary": label_summary(fields),
     }
 

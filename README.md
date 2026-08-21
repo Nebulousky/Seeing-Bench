@@ -152,7 +152,8 @@ seeingbench datasets roi-readiness \
 
 The Copernicus sample ROI points to exact LROC WAC reflectance and GLD100 tile manifests,
 but readiness remains blocked until those large files exist locally and exact checksums are
-declared.
+declared. If the small XML labels are cached, readiness also reports the planned row/column
+window for the ROI without reading the large raster products.
 
 To evaluate an external reconstruction, place or import a `reconstruction.tif` into a result
 directory:

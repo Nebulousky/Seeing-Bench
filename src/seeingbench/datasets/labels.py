@@ -147,6 +147,68 @@ def label_summary(fields: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def roi_pixel_window(
+    fields: dict[str, Any],
+    center_lat_deg: float,
+    center_lon_deg: float,
+    width_km: float,
+    height_km: float,
+) -> dict[str, Any]:
+    """Plan an approximate pixel window for an ROI within a labelled map tile."""
+
+    required = (
+        "minimum_latitude",
+        "maximum_latitude",
+        "westernmost_longitude",
+        "easternmost_longitude",
+        "lines",
+        "line_samples",
+        "map_scale",
+    )
+    if any(name not in fields for name in required):
+        return {"status": "unknown", "reason": "missing_label_fields"}
+
+    lines = int(fields["lines"])
+    samples = int(fields["line_samples"])
+    if lines <= 0 or samples <= 0:
+        return {"status": "unknown", "reason": "invalid_image_dimensions"}
+
+    min_lat = float(fields["minimum_latitude"])
+    max_lat = float(fields["maximum_latitude"])
+    west = _normalise_lon_360(float(fields["westernmost_longitude"]))
+    east = _normalise_lon_360(float(fields["easternmost_longitude"]))
+    lon = _normalise_lon_360(center_lon_deg)
+    lat_span = abs(max_lat - min_lat)
+    lon_span = _longitude_span(west, east)
+    if lat_span <= 0.0 or lon_span <= 0.0:
+        return {"status": "unknown", "reason": "invalid_map_bounds"}
+
+    coverage = label_coverage_status(fields, center_lat_deg, center_lon_deg)
+    row_center = (max(max_lat, min_lat) - center_lat_deg) / lat_span * lines
+    col_center = _longitude_offset(lon, west) / lon_span * samples
+    map_scale = float(fields["map_scale"])
+    half_height_px = max(1.0, (height_km * 1000.0) / (2.0 * map_scale))
+    half_width_px = max(1.0, (width_km * 1000.0) / (2.0 * map_scale))
+
+    row_start = _clamp_int(row_center - half_height_px, 0, lines)
+    row_stop = _clamp_int(row_center + half_height_px, 0, lines)
+    col_start = _clamp_int(col_center - half_width_px, 0, samples)
+    col_stop = _clamp_int(col_center + half_width_px, 0, samples)
+    return {
+        "status": "ok" if coverage == "ok" else "outside",
+        "coverage_status": coverage,
+        "row_start": row_start,
+        "row_stop": max(row_stop, row_start),
+        "col_start": col_start,
+        "col_stop": max(col_stop, col_start),
+        "row_count": max(0, row_stop - row_start),
+        "col_count": max(0, col_stop - col_start),
+        "row_center": row_center,
+        "col_center": col_center,
+        "estimated_map_scale_m_per_px": map_scale,
+    }
+
+
 def _strip_comment(line: str) -> str:
     return re.sub(r"/\*.*?\*/", "", line)
 
@@ -185,3 +247,15 @@ def _longitude_in_interval(lon: float, west: float, east: float) -> bool:
     if west <= east:
         return west <= lon <= east
     return lon >= west or lon <= east
+
+
+def _longitude_span(west: float, east: float) -> float:
+    return east - west if west <= east else (360.0 - west) + east
+
+
+def _longitude_offset(lon: float, west: float) -> float:
+    return (lon - west) % 360.0
+
+
+def _clamp_int(value: float, minimum: int, maximum: int) -> int:
+    return max(minimum, min(maximum, round(value)))
