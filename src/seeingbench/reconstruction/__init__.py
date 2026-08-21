@@ -3,6 +3,7 @@
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
     CommandLineAdapter,
+    ExistingResultAdapter,
     LocalBlockAlignedStackAdapter,
     ManualImportAdapter,
     OracleAlignedStackAdapter,
@@ -13,6 +14,7 @@ from seeingbench.reconstruction.adapter import (
 __all__ = [
     "BaselineStackAdapter",
     "CommandLineAdapter",
+    "ExistingResultAdapter",
     "LocalBlockAlignedStackAdapter",
     "ManualImportAdapter",
     "OracleAlignedStackAdapter",

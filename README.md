@@ -19,6 +19,8 @@ unsupported fine detail.
   - `truth/latent.tif`
   - `truth/warp_000001.npy`, `truth/warp_000002.npy`, ...
   - `metadata.json`
+- Comparative studies can run command-line tools or ingest precomputed standard result
+  directories from manual/GUI reconstruction tools.
 - Baseline mean-stack adapter.
 - Global phase-correlation translation-stack adapter.
 - Local block phase-correlation stack adapter for practical non-oracle destretching.

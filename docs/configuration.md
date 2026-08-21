@@ -174,13 +174,16 @@ contrast. The default `none` leaves intensities unchanged.
 `{result}` placeholders and must write `reconstruction.tif` in the result directory.
 Command entries may also define `version_command`; it is run before reconstruction and its
 return code, stdout, and stderr are recorded in the result metadata and carried into
-evaluation reports.
+evaluation reports. `existing_result` entries provide a `result_dir` that already follows
+the standard result contract, allowing manually run GUI tools such as third-party stackers
+to be copied into a study without rerunning them.
 Relative `case` paths are resolved from the config file's parent directory.
 
 `seeingbench study tool-readiness` accepts the same configured-study files, including
 standalone-reference study files, and checks whether command executables resolve locally
-without running them. Built-in adapters are reported as ready; missing command executables
-make the command return non-zero.
+without running them. Built-in adapters are reported as ready; `existing_result` entries
+are ready when their `result_dir/reconstruction.tif` exists; missing command executables or
+missing result reconstructions make the command return non-zero.
 
 `seeingbench study run-reference-config` uses the same algorithm entries but evaluates each
 result against a standalone `reference` image path instead of synthetic retained truth. It

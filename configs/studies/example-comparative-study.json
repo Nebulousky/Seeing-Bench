@@ -27,6 +27,11 @@
         "path/to/external_tool.py",
         "--version"
       ]
+    },
+    {
+      "name": "precomputed_gui_tool",
+      "kind": "existing_result",
+      "result_dir": "../../outputs/precomputed-gui-tool"
     }
   ]
 }

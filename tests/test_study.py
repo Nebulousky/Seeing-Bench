@@ -183,6 +183,93 @@ def test_cli_configured_study_runs_builtin_and_external_command(tmp_path: Path) 
     )
 
 
+def test_cli_configured_study_accepts_existing_result_directory(tmp_path: Path) -> None:
+    case_dir = tmp_path / "case"
+    existing_result_dir = tmp_path / "existing-result"
+    study_dir = tmp_path / "study"
+    config_path = tmp_path / "study.json"
+
+    assert (
+        main(
+            [
+                "simulate",
+                "--output",
+                str(case_dir),
+                "--frames",
+                "3",
+                "--height",
+                "32",
+                "--width",
+                "32",
+                "--seed",
+                "31",
+                "--noise-sigma",
+                "0.0",
+                "--warp-scale",
+                "0.2",
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(
+            [
+                "baseline-stack",
+                "--case",
+                str(case_dir),
+                "--output",
+                str(existing_result_dir),
+            ]
+        )
+        == 0
+    )
+    config_path.write_text(
+        json.dumps(
+            {
+                "case": str(case_dir),
+                "frequency_bins": 6,
+                "algorithms": [
+                    {"name": "mean_stack", "kind": "builtin", "builtin": "mean_stack"},
+                    {
+                        "name": "precomputed_gui_tool",
+                        "kind": "existing_result",
+                        "result_dir": str(existing_result_dir),
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "study",
+                "run-config",
+                "--config",
+                str(config_path),
+                "--output",
+                str(study_dir),
+            ]
+        )
+        == 0
+    )
+
+    summary = json.loads((study_dir / "study-summary.json").read_text(encoding="utf-8"))
+    precomputed = next(
+        row for row in summary["algorithms"] if row["algorithm"] == "precomputed_gui_tool"
+    )
+    metadata = json.loads((Path(precomputed["result_dir"]) / "metadata.json").read_text())
+    metrics = json.loads(Path(precomputed["metrics"]).read_text(encoding="utf-8"))
+    assert precomputed["source_result_dir"] == str(existing_result_dir)
+    assert metadata["adapter"] == "precomputed_gui_tool"
+    assert metadata["source_result_dir"] == str(existing_result_dir)
+    assert metadata["source_metadata"]["adapter"] == "mean_stack"
+    assert metrics["metadata"]["reconstruction_metadata"]["source_metadata"]["adapter"] == (
+        "mean_stack"
+    )
+
+
 def test_cli_configured_study_accepts_utf8_bom_config(tmp_path: Path) -> None:
     case_dir = tmp_path / "case"
     study_dir = tmp_path / "study"
@@ -321,6 +408,50 @@ def test_cli_study_tool_readiness_returns_nonzero_for_missing_command(tmp_path: 
         )
         == 1
     )
+
+
+def test_cli_study_tool_readiness_checks_existing_result_directory(tmp_path: Path) -> None:
+    result_dir = tmp_path / "manual-result"
+    readiness_path = tmp_path / "tool-readiness.json"
+    config_path = tmp_path / "study.json"
+    result_dir.mkdir()
+    (result_dir / "reconstruction.tif").write_bytes(b"placeholder")
+    config_path.write_text(
+        json.dumps(
+            {
+                "case": str(tmp_path / "case"),
+                "frequency_bins": 6,
+                "algorithms": [
+                    {"name": "mean_stack", "kind": "builtin", "builtin": "mean_stack"},
+                    {
+                        "name": "manual_gui_tool",
+                        "kind": "existing_result",
+                        "result_dir": str(result_dir),
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "study",
+                "tool-readiness",
+                "--config",
+                str(config_path),
+                "--output",
+                str(readiness_path),
+            ]
+        )
+        == 0
+    )
+
+    report = json.loads(readiness_path.read_text(encoding="utf-8"))
+    manual = next(row for row in report["algorithms"] if row["algorithm"] == "manual_gui_tool")
+    assert manual["ready"]
+    assert manual["result_dir"] == str(result_dir)
 
 
 def test_cli_reference_configured_study_compares_against_standalone_reference(

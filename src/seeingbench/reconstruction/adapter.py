@@ -120,6 +120,40 @@ class CommandLineAdapter:
 
 
 @dataclass(frozen=True)
+class ExistingResultAdapter:
+    """Adapter for precomputed result directories from manual or GUI tools."""
+
+    source_result_dir: Path
+    name: str = "existing_result"
+
+    def prepare(self, benchmark_case: Path, result_dir: Path) -> None:
+        result_dir.mkdir(parents=True, exist_ok=True)
+
+    def execute(self, benchmark_case: Path, result_dir: Path) -> None:
+        started = time.perf_counter()
+        source_reconstruction = self.source_result_dir / "reconstruction.tif"
+        if not source_reconstruction.exists():
+            raise FileNotFoundError(source_reconstruction)
+        shutil.copy2(source_reconstruction, result_dir / "reconstruction.tif")
+        source_metadata = _load_optional_result_metadata(self.source_result_dir / "metadata.json")
+        metadata = {
+            "adapter": self.name,
+            "source_result_dir": str(self.source_result_dir),
+            "source_metadata": source_metadata,
+            "runtime_s": time.perf_counter() - started,
+            "validation_boundary": (
+                "precomputed reconstruction is copied from an existing standard result "
+                "directory; no reconstruction command is run by this study"
+            ),
+        }
+        (result_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+    def collect_results(self, benchmark_case: Path, result_dir: Path) -> None:
+        if not (result_dir / "reconstruction.tif").exists():
+            raise FileNotFoundError("existing result did not provide reconstruction.tif")
+
+
+@dataclass(frozen=True)
 class BaselineStackAdapter:
     """Simple average stack baseline for synthetic cases."""
 
@@ -352,3 +386,12 @@ def copy_manual_reconstruction(source: Path, result_dir: Path) -> None:
         raise FileNotFoundError(source)
     result_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, result_dir / "reconstruction.tif")
+
+
+def _load_optional_result_metadata(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    if not isinstance(data, dict):
+        raise ValueError(f"result metadata must be a JSON object: {path}")
+    return data

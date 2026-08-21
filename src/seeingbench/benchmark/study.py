@@ -19,6 +19,7 @@ from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluatio
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
     CommandLineAdapter,
+    ExistingResultAdapter,
     LocalBlockAlignedStackAdapter,
     TranslationAlignedStackAdapter,
 )
@@ -39,10 +40,11 @@ class StudyAlgorithmConfig:
     builtin: str | None = None
     command: tuple[str, ...] = ()
     version_command: tuple[str, ...] = ()
+    result_dir: Path | None = None
     local_block_size_px: int | None = None
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> StudyAlgorithmConfig:
+    def from_dict(cls, data: dict[str, Any], base_dir: Path) -> StudyAlgorithmConfig:
         required = {"name", "kind"}
         missing = sorted(required - set(data))
         if missing:
@@ -59,6 +61,9 @@ class StudyAlgorithmConfig:
             builtin=None if data.get("builtin") is None else str(data["builtin"]),
             command=tuple(str(part) for part in command),
             version_command=tuple(str(part) for part in version_command),
+            result_dir=None
+            if data.get("result_dir") is None
+            else _resolve_config_path(base_dir, str(data["result_dir"])),
             local_block_size_px=None
             if data.get("local_block_size_px") is None
             else int(data["local_block_size_px"]),
@@ -69,8 +74,10 @@ class StudyAlgorithmConfig:
     def validate(self) -> None:
         if not self.name:
             raise ValueError("study algorithm name must be non-empty")
-        if self.kind not in {"builtin", "command"}:
-            raise ValueError("study algorithm kind must be 'builtin' or 'command'")
+        if self.kind not in {"builtin", "command", "existing_result"}:
+            raise ValueError(
+                "study algorithm kind must be 'builtin', 'command', or 'existing_result'"
+            )
         if self.kind == "builtin":
             if self.builtin not in BUILTIN_BASELINE_ALGORITHMS:
                 raise ValueError(f"unknown built-in study algorithm: {self.builtin}")
@@ -78,11 +85,26 @@ class StudyAlgorithmConfig:
                 raise ValueError("built-in study algorithms must not declare command")
             if self.version_command:
                 raise ValueError("built-in study algorithms must not declare version_command")
+            if self.result_dir is not None:
+                raise ValueError("built-in study algorithms must not declare result_dir")
         if self.kind == "command":
             if self.builtin is not None:
                 raise ValueError("command study algorithms must not declare builtin")
             if not self.command:
                 raise ValueError("command study algorithms must declare a non-empty command")
+            if self.result_dir is not None:
+                raise ValueError("command study algorithms must not declare result_dir")
+        if self.kind == "existing_result":
+            if self.builtin is not None:
+                raise ValueError("existing_result study algorithms must not declare builtin")
+            if self.command:
+                raise ValueError("existing_result study algorithms must not declare command")
+            if self.version_command:
+                raise ValueError(
+                    "existing_result study algorithms must not declare version_command"
+                )
+            if self.result_dir is None:
+                raise ValueError("existing_result study algorithms must declare result_dir")
         if self.local_block_size_px is not None and self.local_block_size_px <= 0:
             raise ValueError("local_block_size_px must be positive when provided")
 
@@ -108,7 +130,8 @@ class ComparativeStudyConfig:
         config = cls(
             case_dir=_resolve_config_path(base_dir, str(data["case"])),
             algorithms=tuple(
-                StudyAlgorithmConfig.from_dict(_algorithm_dict(item)) for item in algorithm_data
+                StudyAlgorithmConfig.from_dict(_algorithm_dict(item), base_dir)
+                for item in algorithm_data
             ),
             frequency_bins=int(data.get("frequency_bins", 24)),
             local_block_size_px=int(data.get("local_block_size_px", 32)),
@@ -166,7 +189,8 @@ class ReferenceComparativeStudyConfig:
             if data.get("reference_metadata") is None
             else _resolve_config_path(base_dir, str(data["reference_metadata"])),
             algorithms=tuple(
-                StudyAlgorithmConfig.from_dict(_algorithm_dict(item)) for item in algorithm_data
+                StudyAlgorithmConfig.from_dict(_algorithm_dict(item), base_dir)
+                for item in algorithm_data
             ),
             frequency_bins=int(data.get("frequency_bins", 24)),
             local_block_size_px=int(data.get("local_block_size_px", 32)),
@@ -330,6 +354,9 @@ def run_comparative_study(
             {
                 "algorithm": algorithm.name,
                 "kind": algorithm.kind,
+                "source_result_dir": None
+                if algorithm.result_dir is None
+                else str(algorithm.result_dir),
                 "result_dir": str(result_dir),
                 "metrics": str(metrics_path),
             }
@@ -398,6 +425,9 @@ def run_reference_comparative_study(
             {
                 "algorithm": algorithm.name,
                 "kind": algorithm.kind,
+                "source_result_dir": None
+                if algorithm.result_dir is None
+                else str(algorithm.result_dir),
                 "result_dir": str(result_dir),
                 "metrics": str(metrics_path),
             }
@@ -448,12 +478,20 @@ def _configured_adapter(
     | TranslationAlignedStackAdapter
     | LocalBlockAlignedStackAdapter
     | CommandLineAdapter
+    | ExistingResultAdapter
 ):
     if algorithm.kind == "command":
         return CommandLineAdapter(
             command=algorithm.command,
             name=algorithm.name,
             version_command=algorithm.version_command,
+        )
+    if algorithm.kind == "existing_result":
+        if algorithm.result_dir is None:
+            raise ValueError("existing_result study algorithm is missing result_dir")
+        return ExistingResultAdapter(
+            source_result_dir=algorithm.result_dir,
+            name=algorithm.name,
         )
     if algorithm.builtin is None:
         raise ValueError("built-in study algorithm is missing builtin")
@@ -484,6 +522,19 @@ def _algorithm_readiness(algorithm: StudyAlgorithmConfig) -> dict[str, Any]:
             "ready": True,
             "builtin": algorithm.builtin,
             "reason": None,
+        }
+    if algorithm.kind == "existing_result":
+        reconstruction = (
+            None if algorithm.result_dir is None else algorithm.result_dir / "reconstruction.tif"
+        )
+        ready = reconstruction is not None and reconstruction.exists()
+        return {
+            "algorithm": algorithm.name,
+            "kind": algorithm.kind,
+            "ready": ready,
+            "result_dir": None if algorithm.result_dir is None else str(algorithm.result_dir),
+            "reconstruction": None if reconstruction is None else str(reconstruction),
+            "reason": None if ready else "result_reconstruction_not_found",
         }
 
     executable = algorithm.command[0]
