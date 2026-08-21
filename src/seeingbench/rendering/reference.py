@@ -16,6 +16,10 @@ from seeingbench.observations import (
     telescope_config_from_observation,
 )
 from seeingbench.rendering.illumination import lambertian_shading_from_dem
+from seeingbench.rendering.projection import (
+    apply_local_orthographic_projection,
+    local_orthographic_projection_matrix,
+)
 from seeingbench.simulation.psf import gaussian_blur
 from seeingbench.simulation.telescope import (
     diffraction_gaussian_sigma_px,
@@ -30,6 +34,7 @@ def render_telescope_matched_reference(
     role: str | None = None,
     spice_cache_root: Path | None = None,
     apply_illumination: bool = False,
+    apply_earth_view_projection: bool = False,
     terrain_role: str = "terrain",
 ) -> dict[str, Any]:
     """Blur a local surface reference to the observation telescope's diffraction limit."""
@@ -85,6 +90,14 @@ def render_telescope_matched_reference(
     source_for_matching = source
     if illumination["applied"]:
         source_for_matching = source * illumination.pop("_shading")
+    projection = _projection_report(
+        source_for_matching,
+        surface_report,
+        spice_geometry_report,
+        apply_earth_view_projection,
+    )
+    if projection["applied"]:
+        source_for_matching = projection.pop("_projected")
     sigma_px = telescope_diffraction_sigma_in_reference_px(
         telescope,
         reference_resolution_m_per_px,
@@ -116,10 +129,16 @@ def render_telescope_matched_reference(
                 if spice_geometry_report is None
                 else spice_geometry_report.get("geometry"),
                 "illumination": illumination,
+                "earth_view_projection": projection,
             }
         ],
         "spice_geometry_report": spice_geometry_report,
-        "limitations": _limitations(distance_limitations, spice_geometry_report, illumination),
+        "limitations": _limitations(
+            distance_limitations,
+            spice_geometry_report,
+            illumination,
+            projection,
+        ),
     }
     _write_report(output_root, report)
     return report
@@ -170,7 +189,7 @@ def _blocked_report(
         "blocking_reasons": blocking_reasons,
         "references": [],
         "spice_geometry_report": spice_geometry_report,
-        "limitations": _limitations(distance_limitations, spice_geometry_report, None),
+        "limitations": _limitations(distance_limitations, spice_geometry_report, None, None),
     }
 
 
@@ -227,10 +246,48 @@ def _illumination_report(
     }
 
 
+def _projection_report(
+    source: np.ndarray,
+    surface_report: dict[str, Any],
+    spice_geometry_report: dict[str, Any] | None,
+    apply_earth_view_projection: bool,
+) -> dict[str, Any]:
+    if not apply_earth_view_projection:
+        return {"applied": False, "reason": "not_requested"}
+    geometry = None if spice_geometry_report is None else spice_geometry_report.get("geometry")
+    if not isinstance(geometry, dict):
+        return {"applied": False, "reason": "missing_spice_geometry"}
+    roi = surface_report.get("roi", {})
+    center_latitude_deg = float(roi.get("center_lat_deg", 0.0))
+    center_longitude_deg = float(roi.get("center_lon_deg", 0.0))
+    try:
+        matrix, incidence_cosine = local_orthographic_projection_matrix(
+            center_latitude_deg=center_latitude_deg,
+            center_longitude_deg_east=center_longitude_deg,
+            sub_observer_latitude_deg=float(geometry["sub_observer_latitude_deg"]),
+            sub_observer_longitude_deg_east=float(geometry["sub_observer_longitude_deg_east"]),
+        )
+        projected = apply_local_orthographic_projection(source, matrix)
+    except ValueError as exc:
+        return {"applied": False, "reason": f"projection_unavailable: {exc}"}
+    return {
+        "applied": True,
+        "method": "local linear orthographic projection",
+        "center_latitude_deg": center_latitude_deg,
+        "center_longitude_deg_east": center_longitude_deg,
+        "sub_observer_latitude_deg": geometry["sub_observer_latitude_deg"],
+        "sub_observer_longitude_deg_east": geometry["sub_observer_longitude_deg_east"],
+        "incidence_cosine": incidence_cosine,
+        "matrix": matrix.tolist(),
+        "_projected": projected,
+    }
+
+
 def _limitations(
     distance_limitations: list[str],
     spice_geometry_report: dict[str, Any] | None,
     illumination: dict[str, Any] | None,
+    projection: dict[str, Any] | None,
 ) -> list[str]:
     illumination_applied = illumination is not None and bool(illumination.get("applied"))
     illumination_limitations = (
@@ -238,17 +295,23 @@ def _limitations(
         if illumination_applied
         else ["no_illumination_model"]
     )
+    projection_applied = projection is not None and bool(projection.get("applied"))
+    projection_limitations = (
+        ["local_linear_orthographic_projection"]
+        if projection_applied
+        else ["not_earth_view_projected"]
+    )
     if spice_geometry_report is not None and spice_geometry_report["ready"]:
         return [
-            "not_earth_view_projected",
             "spice_libration_and_illumination_metadata_not_yet_applied_to_pixels",
+            *projection_limitations,
             *illumination_limitations,
             *distance_limitations,
         ]
     return [
         "not_spice_backed",
-        "not_earth_view_projected",
         "no_libration_or_orientation_solution",
+        *projection_limitations,
         *illumination_limitations,
         *distance_limitations,
     ]

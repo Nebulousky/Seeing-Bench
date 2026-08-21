@@ -247,7 +247,12 @@ position, timestamp, camera dimensions, and Earth-Moon distance are preserved as
 When `--spice-cache-root` is provided and the observation lists local kernels, the renderer
 uses SPICE-derived topocentric Earth-Moon distance for diffraction matching and records
 sub-observer, sub-solar, phase, and angular-radius metadata. It still reports limitations
-rather than pretending to apply Earth-view pixel reprojection.
+rather than pretending to perform full-disk Earth-view rendering.
+
+`--apply-earth-view-projection` applies a local linear orthographic projection derived from
+the ROI centre and SPICE sub-observer point before telescope blurring. This approximates
+small ROI foreshortening and orientation on the sky plane; it is not a full spherical
+renderer and is labelled `local_linear_orthographic_projection` in reports.
 
 `--apply-illumination` multiplies the selected reflectance reference by a simple
 Lambertian shading map derived from the `--terrain-role` DEM reference and SPICE sub-solar

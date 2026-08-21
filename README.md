@@ -226,6 +226,7 @@ seeingbench render telescope-reference \
   --observation configs/observations/example-lunar-observation.json \
   --output-root outputs/copernicus-telescope-reference \
   --spice-cache-root . \
+  --apply-earth-view-projection \
   --apply-illumination \
   --terrain-role terrain \
   --role reflectance

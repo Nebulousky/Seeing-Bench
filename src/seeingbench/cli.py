@@ -246,6 +246,7 @@ def _build_parser() -> argparse.ArgumentParser:
     telescope_reference.add_argument("--role")
     telescope_reference.add_argument("--spice-cache-root", type=Path)
     telescope_reference.add_argument("--apply-illumination", action="store_true")
+    telescope_reference.add_argument("--apply-earth-view-projection", action="store_true")
     telescope_reference.add_argument("--terrain-role", default="terrain")
     telescope_reference.set_defaults(func=_render_telescope_reference)
 
@@ -558,6 +559,7 @@ def _render_telescope_reference(args: argparse.Namespace) -> int:
         role=args.role,
         spice_cache_root=args.spice_cache_root,
         apply_illumination=args.apply_illumination,
+        apply_earth_view_projection=args.apply_earth_view_projection,
         terrain_role=args.terrain_role,
     )
     sys.stdout.write(f"{json.dumps(report, indent=2)}\n")

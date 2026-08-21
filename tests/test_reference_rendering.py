@@ -151,6 +151,46 @@ def test_render_telescope_matched_reference_can_apply_terrain_illumination(
     assert "no_illumination_model" not in report["limitations"]
 
 
+def test_render_telescope_matched_reference_can_apply_earth_view_projection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "seeingbench.rendering.reference.build_spice_observation_geometry_report",
+        lambda observation_path, cache_root: _spice_geometry_report(sub_observer_lon=60.0),
+    )
+    source = np.tile(np.arange(65, dtype=np.float64), (65, 1)) / 64.0
+    source_path = tmp_path / "reflectance.npy"
+    np.save(source_path, source)
+    surface_report = _write_surface_report_with_roi(tmp_path, source_path)
+    observation = _write_observation(tmp_path)
+
+    unprojected = render_telescope_matched_reference(
+        surface_report,
+        observation,
+        tmp_path / "unprojected",
+        role="reflectance",
+        spice_cache_root=tmp_path,
+    )
+    projected = render_telescope_matched_reference(
+        surface_report,
+        observation,
+        tmp_path / "projected",
+        role="reflectance",
+        spice_cache_root=tmp_path,
+        apply_earth_view_projection=True,
+    )
+
+    unprojected_output = np.load(Path(unprojected["references"][0]["output"]))
+    projected_output = np.load(Path(projected["references"][0]["output"]))
+    projection = projected["references"][0]["earth_view_projection"]
+    assert projection["applied"]
+    assert projection["incidence_cosine"] == pytest.approx(0.5)
+    assert not np.allclose(projected_output, unprojected_output)
+    assert "local_linear_orthographic_projection" in projected["limitations"]
+    assert "not_earth_view_projected" not in projected["limitations"]
+
+
 def test_cli_telescope_reference_returns_nonzero_when_metadata_is_incomplete(
     tmp_path: Path,
 ) -> None:
@@ -235,6 +275,31 @@ def _write_surface_report_with_terrain(
     return report_path
 
 
+def _write_surface_report_with_roi(tmp_path: Path, source_path: Path) -> Path:
+    report_path = tmp_path / "surface-reference-report.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "roi": {
+                    "center_lat_deg": 0.0,
+                    "center_lon_deg": 0.0,
+                },
+                "target_resolution_m_per_px": 100.0,
+                "references": [
+                    {
+                        "role": "reflectance",
+                        "output": str(source_path),
+                        "shape": [65, 65],
+                        "dtype": "float64",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return report_path
+
+
 def _write_observation(tmp_path: Path) -> Path:
     observation = tmp_path / "observation.json"
     observation.write_text(
@@ -296,3 +361,20 @@ def _write_spice_observation(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return observation
+
+
+def _spice_geometry_report(sub_observer_lon: float) -> dict[str, object]:
+    geometry = {
+        "utc_start": "2026-08-15T00:46:34Z",
+        "reference_frame": "J2000",
+        "earth_moon_distance_m": 384400000.0,
+        "sub_observer_latitude_deg": 0.0,
+        "sub_observer_longitude_deg_east": sub_observer_lon,
+        "sub_solar_latitude_deg": 0.0,
+        "sub_solar_longitude_deg_east": 0.0,
+    }
+    return {
+        "ready": True,
+        "blocking_reasons": [],
+        "geometry": geometry,
+    }
