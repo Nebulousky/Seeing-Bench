@@ -168,6 +168,16 @@ seeingbench datasets reproject-roi \
   --output-root outputs/copernicus-reference
 ```
 
+Blur a local ROI reference to the diffraction limit of a documented observation telescope:
+
+```bash
+seeingbench render telescope-reference \
+  --surface-reference-report outputs/copernicus-reference/surface-reference-report.json \
+  --observation configs/observations/example-lunar-observation.json \
+  --output-root outputs/copernicus-telescope-reference \
+  --role reflectance
+```
+
 Inspect whether a documented real-data ROI is locally ready without downloading bulk data:
 
 ```bash

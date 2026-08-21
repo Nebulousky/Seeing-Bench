@@ -66,9 +66,10 @@ frequency interpretation, Markdown reports, comparison reports, richer diagnosti
 commands, and unit tests. Phase 2 now has manifests, metadata/label fetching, ROI
 readiness checks for local cache presence and declared checksums, explicit no-download ROI
 download plans, verified local IMG window extraction, and basic map-window reprojection
-into ROI reference grids. LRO/LOLA/NAC/SPICE Earth-view rendering is not implemented, and
-the dataset commands do not download bulk products unless a future explicit downloader is
-added.
+into ROI reference grids. Phase 3 has partial real-observation metadata parsing and a
+telescope-diffraction matching renderer for local ROI references. LRO/LOLA/NAC/SPICE
+Earth-view rendering is not implemented, and the dataset commands do not download bulk
+products unless a future explicit downloader is added.
 
 ## Related
 

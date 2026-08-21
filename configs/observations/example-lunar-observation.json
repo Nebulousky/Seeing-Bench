@@ -1,0 +1,23 @@
+{
+  "target": "Moon",
+  "utc_start": "2026-08-15T00:46:34Z",
+  "observer": {
+    "latitude": null,
+    "longitude": null,
+    "altitude_m": null
+  },
+  "telescope": {
+    "aperture_mm": 200.0,
+    "focal_length_mm": 4000.0,
+    "central_obstruction": 0.0
+  },
+  "camera": {
+    "pixel_size_um": 2.9,
+    "width": 1920,
+    "height": 1080
+  },
+  "filter": {
+    "name": "green",
+    "effective_wavelength_nm": 550.0
+  }
+}

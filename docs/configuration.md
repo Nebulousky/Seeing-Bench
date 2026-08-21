@@ -180,3 +180,13 @@ map window onto the ROI's declared `target_resolution_m_per_px` grid. This is a 
 north-up map-window reprojection for Phase 2 dataset plumbing; it is not yet the SPICE-backed
 Earth-view renderer and does not apply illumination, libration, local registration, or
 telescope PSF matching.
+
+## Real Observation Metadata
+
+The `render telescope-reference` command accepts the real-observation metadata shape from
+`configs/observations/example-lunar-observation.json`. The first implementation requires
+`telescope.aperture_mm`, `telescope.focal_length_mm`, `camera.pixel_size_um`, and
+`filter.effective_wavelength_nm` to compute a diffraction-matched local reference. Observer
+position, timestamp, camera dimensions, and Earth-Moon distance are preserved as metadata,
+but the command currently reports limitations rather than pretending to solve SPICE-backed
+orientation, libration, illumination, or Earth-view projection.

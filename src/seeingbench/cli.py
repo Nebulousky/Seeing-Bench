@@ -33,6 +33,7 @@ from seeingbench.reconstruction.adapter import (
     TranslationAlignedStackAdapter,
     copy_manual_reconstruction,
 )
+from seeingbench.rendering.reference import render_telescope_matched_reference
 from seeingbench.simulation.atmosphere import SeeingModel
 from seeingbench.simulation.config import (
     SeeingSimulationConfig,
@@ -133,6 +134,19 @@ def _build_parser() -> argparse.ArgumentParser:
     synthetic_sweep.add_argument("--config", required=True, type=Path)
     synthetic_sweep.add_argument("--output", required=True, type=Path)
     synthetic_sweep.set_defaults(func=_experiment_synthetic_sweep)
+
+    render = subparsers.add_parser("render", help="reference rendering utilities")
+    render_subparsers = render.add_subparsers(required=True)
+
+    telescope_reference = render_subparsers.add_parser(
+        "telescope-reference",
+        help="blur a local ROI reference to a real observation telescope limit",
+    )
+    telescope_reference.add_argument("--surface-reference-report", required=True, type=Path)
+    telescope_reference.add_argument("--observation", required=True, type=Path)
+    telescope_reference.add_argument("--output-root", required=True, type=Path)
+    telescope_reference.add_argument("--role")
+    telescope_reference.set_defaults(func=_render_telescope_reference)
 
     datasets = subparsers.add_parser("datasets", help="dataset manifest utilities")
     dataset_subparsers = datasets.add_subparsers(required=True)
@@ -345,6 +359,17 @@ def _experiment_synthetic_sweep(args: argparse.Namespace) -> int:
     run_synthetic_sweep(config, args.output)
     sys.stdout.write(f"{args.output / 'summary.md'}\n")
     return 0
+
+
+def _render_telescope_reference(args: argparse.Namespace) -> int:
+    report = render_telescope_matched_reference(
+        args.surface_reference_report,
+        args.observation,
+        args.output_root,
+        role=args.role,
+    )
+    sys.stdout.write(f"{json.dumps(report, indent=2)}\n")
+    return 0 if report["reference_count"] > 0 else 1
 
 
 def _datasets_validate_manifest(args: argparse.Namespace) -> int:
