@@ -34,6 +34,9 @@ def test_render_telescope_matched_reference_applies_diffraction_blur(
     assert output[32, 32] < 1.0
     assert output[32, 32] > output[32, 33]
     assert report["references"][0]["diffraction_sigma_reference_px"] > 0.0
+    assert report["references"][0]["label_provenance"]["logical_identifier"] == (
+        "urn:nasa:pds:surface"
+    )
     assert "not_spice_backed" in report["limitations"]
 
 
@@ -231,6 +234,11 @@ def _write_surface_report(tmp_path: Path, source_path: Path) -> Path:
                         "output": str(source_path),
                         "shape": [65, 65],
                         "dtype": "float64",
+                        "label_provenance": {
+                            "logical_identifier": "urn:nasa:pds:surface",
+                            "title": "Surface Reference",
+                        },
+                        "label_summary": {"map_scale_m_per_px": 100.0},
                     }
                 ],
             }
@@ -260,6 +268,8 @@ def _write_surface_report_with_terrain(
                         "output": str(reflectance_path),
                         "shape": [65, 65],
                         "dtype": "float64",
+                        "label_provenance": {"logical_identifier": "urn:nasa:pds:reflectance"},
+                        "label_summary": {"map_scale_m_per_px": 100.0},
                     },
                     {
                         "role": "terrain",

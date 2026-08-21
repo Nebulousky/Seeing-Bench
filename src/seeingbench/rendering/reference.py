@@ -121,6 +121,8 @@ def render_telescope_matched_reference(
                 "shape": list(matched.shape),
                 "dtype": str(matched.dtype),
                 "method": "gaussian diffraction matching on local ROI map grid",
+                "label_provenance": source_reference.get("label_provenance", {}),
+                "label_summary": source_reference.get("label_summary", {}),
                 "reference_resolution_m_per_px": reference_resolution_m_per_px,
                 "earth_moon_distance_m": distance_m,
                 "diffraction_sigma_reference_px": sigma_px,

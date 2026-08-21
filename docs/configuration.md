@@ -279,6 +279,8 @@ renderer and is labelled `local_linear_orthographic_projection` in reports.
 Lambertian shading map derived from the `--terrain-role` DEM reference and SPICE sub-solar
 metadata. This is an explicit first-order structural aid, not a full lunar photometric
 model; reports label it `simple_lambertian_illumination_model`.
+Telescope-reference rows preserve `label_provenance` and `label_summary` copied from the
+selected surface-reference row.
 
 `geometry spice-readiness` checks the SPICE side of that contract. Observation metadata must
 include `utc_start`, `observer.latitude`, `observer.longitude`, `observer.altitude_m`, and
