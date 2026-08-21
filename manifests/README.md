@@ -29,6 +29,15 @@ Fetch only declared product labels:
 seeingbench datasets fetch-labels manifests/rois/copernicus_wac_gld100.json --output-root .
 ```
 
+Write declared ROI product URLs and destinations without downloading products:
+
+```bash
+seeingbench datasets roi-download-plan \
+  --roi configs/rois/copernicus-100m.json \
+  --cache-root . \
+  --manifest-root .
+```
+
 Inspect local ROI readiness without downloading bulk products:
 
 ```bash

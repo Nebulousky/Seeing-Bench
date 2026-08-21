@@ -208,6 +208,64 @@ def build_roi_readiness_report(
     }
 
 
+def build_roi_download_plan(
+    roi_path: Path,
+    cache_root: Path,
+    manifest_root: Path,
+) -> dict[str, Any]:
+    """Build an explicit no-download acquisition plan for an ROI."""
+
+    roi = load_roi_config(roi_path)
+    product_files: list[dict[str, Any]] = []
+    labels: list[dict[str, Any]] = []
+    seen_labels: set[tuple[str, str]] = set()
+    for requirement in roi.required_products:
+        manifest_path = manifest_root / requirement.manifest
+        manifest = load_manifest(manifest_path)
+        for product in manifest.product_files:
+            product_files.append(
+                {
+                    "role": requirement.role,
+                    "manifest_path": str(manifest_path),
+                    "name": product.name,
+                    "url": product.url,
+                    "local_path": str(resolve_product_file_cache_path(product, cache_root)),
+                    "declared_checksum": product.checksum,
+                    "expected_size_bytes": product.expected_size_bytes,
+                    "purpose": product.purpose,
+                }
+            )
+            if product.label_url is not None and product.label_local_path is not None:
+                label_key = (product.label_url, str(cache_root / product.label_local_path))
+                if label_key in seen_labels:
+                    continue
+                seen_labels.add(label_key)
+                label_entry = {
+                    "role": requirement.role,
+                    "manifest_path": str(manifest_path),
+                    "url": product.label_url,
+                    "local_path": str(cache_root / product.label_local_path),
+                }
+                labels.append(label_entry)
+    return {
+        "roi": {
+            "name": roi.name,
+            "center_lat_deg": roi.center_lat_deg,
+            "center_lon_deg": roi.center_lon_deg,
+            "width_km": roi.width_km,
+            "height_km": roi.height_km,
+            "target_resolution_m_per_px": roi.target_resolution_m_per_px,
+        },
+        "cache_root": str(cache_root),
+        "manifest_root": str(manifest_root),
+        "downloads_are_not_started": True,
+        "bulk_product_count": len(product_files),
+        "label_count": len(labels),
+        "bulk_products": product_files,
+        "labels": labels,
+    }
+
+
 def _product_status(
     requirement: ROIProductRequirement,
     roi: LunarROIConfig,

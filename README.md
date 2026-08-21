@@ -140,6 +140,16 @@ seeingbench datasets fetch-labels \
   --output-root .
 ```
 
+Write an explicit ROI download plan without downloading bulk data:
+
+```bash
+seeingbench datasets roi-download-plan \
+  --roi configs/rois/copernicus-100m.json \
+  --cache-root . \
+  --manifest-root . \
+  --output outputs/copernicus-download-plan.json
+```
+
 Inspect whether a documented real-data ROI is locally ready without downloading bulk data:
 
 ```bash

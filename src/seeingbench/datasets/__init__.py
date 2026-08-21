@@ -13,6 +13,7 @@ from seeingbench.datasets.manifests import (
 from seeingbench.datasets.readiness import (
     LunarROIConfig,
     ROIProductRequirement,
+    build_roi_download_plan,
     build_roi_readiness_report,
     load_roi_config,
     resolve_manifest_cache_path,
@@ -25,6 +26,7 @@ __all__ = [
     "MetadataDocument",
     "ProductFile",
     "ROIProductRequirement",
+    "build_roi_download_plan",
     "build_roi_readiness_report",
     "fetch_manifest_metadata",
     "fetch_manifest_product_labels",

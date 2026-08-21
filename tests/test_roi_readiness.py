@@ -12,6 +12,7 @@ from seeingbench.cli import main
 from seeingbench.datasets.manifests import DatasetManifest
 from seeingbench.datasets.readiness import (
     LunarROIConfig,
+    build_roi_download_plan,
     build_roi_readiness_report,
     load_roi_config,
     resolve_manifest_cache_path,
@@ -339,6 +340,67 @@ def test_cli_fetch_labels_writes_declared_product_label(
     assert (tmp_path / "cache" / "data" / "metadata" / "tile.lbl").read_text(
         encoding="utf-8"
     ) == "MAP_SCALE\n"
+
+
+def test_roi_download_plan_lists_declared_products_without_downloading(tmp_path: Path) -> None:
+    roi_path = tmp_path / "roi.json"
+    roi_path.write_text(json.dumps(_valid_roi_data()), encoding="utf-8")
+    manifest_path = tmp_path / "manifests" / "terrain.json"
+    manifest_path.parent.mkdir()
+    manifest = _manifest_data(checksum=None)
+    manifest["product_files"] = [
+        {
+            "name": "tile",
+            "url": "https://example.invalid/tile.img",
+            "local_path": "data/tile.img",
+            "checksum": None,
+            "label_url": "https://example.invalid/tile.xml",
+            "label_local_path": "data/metadata/tile.xml",
+        }
+    ]
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    plan = build_roi_download_plan(
+        roi_path,
+        cache_root=tmp_path / "cache",
+        manifest_root=tmp_path,
+    )
+
+    assert plan["downloads_are_not_started"]
+    assert plan["bulk_product_count"] == 1
+    assert plan["label_count"] == 1
+    assert plan["bulk_products"][0]["local_path"] == str(tmp_path / "cache" / "data" / "tile.img")
+    assert plan["labels"][0]["local_path"] == str(
+        tmp_path / "cache" / "data" / "metadata" / "tile.xml"
+    )
+    assert not (tmp_path / "cache" / "data" / "tile.img").exists()
+
+
+def test_cli_writes_roi_download_plan(tmp_path: Path) -> None:
+    output_path = tmp_path / "download-plan.json"
+
+    assert (
+        main(
+            [
+                "datasets",
+                "roi-download-plan",
+                "--roi",
+                "configs/rois/copernicus-100m.json",
+                "--cache-root",
+                str(tmp_path / "cache"),
+                "--manifest-root",
+                ".",
+                "--output",
+                str(output_path),
+            ]
+        )
+        == 0
+    )
+
+    plan = json.loads(output_path.read_text(encoding="utf-8"))
+    assert plan["downloads_are_not_started"]
+    assert plan["bulk_product_count"] == 4
+    assert plan["label_count"] == 2
 
 
 def _valid_roi_data() -> dict[str, object]:

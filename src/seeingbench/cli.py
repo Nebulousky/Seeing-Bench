@@ -22,7 +22,7 @@ from seeingbench.datasets.manifests import (
     fetch_manifest_product_labels,
     validate_manifest_files,
 )
-from seeingbench.datasets.readiness import build_roi_readiness_report
+from seeingbench.datasets.readiness import build_roi_download_plan, build_roi_readiness_report
 from seeingbench.io.images import load_grayscale_image
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
@@ -168,6 +168,16 @@ def _build_parser() -> argparse.ArgumentParser:
     roi_readiness.add_argument("--manifest-root", type=Path, default=Path("."))
     roi_readiness.add_argument("--output", type=Path)
     roi_readiness.set_defaults(func=_datasets_roi_readiness)
+
+    roi_download_plan = dataset_subparsers.add_parser(
+        "roi-download-plan",
+        help="write declared ROI product URLs and cache destinations without downloading data",
+    )
+    roi_download_plan.add_argument("--roi", required=True, type=Path)
+    roi_download_plan.add_argument("--cache-root", type=Path, default=Path("."))
+    roi_download_plan.add_argument("--manifest-root", type=Path, default=Path("."))
+    roi_download_plan.add_argument("--output", type=Path)
+    roi_download_plan.set_defaults(func=_datasets_roi_download_plan)
     return parser
 
 
@@ -349,6 +359,17 @@ def _datasets_roi_readiness(args: argparse.Namespace) -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(payload, encoding="utf-8")
     return 0 if report["ready"] else 1
+
+
+def _datasets_roi_download_plan(args: argparse.Namespace) -> int:
+    plan = build_roi_download_plan(args.roi, args.cache_root, args.manifest_root)
+    payload = json.dumps(plan, indent=2)
+    if args.output is None:
+        sys.stdout.write(f"{payload}\n")
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(payload, encoding="utf-8")
+    return 0
 
 
 def _expand_path_patterns(paths: list[Path]) -> list[Path]:
