@@ -272,7 +272,7 @@ seeingbench run-command \
   -- m51-cli --input {case} --output {result}
 ```
 
-Evaluate a real/reference image pair directly, with optional constrained global translation
+Evaluate a real/reference image pair directly, with optional constrained global similarity
 registration:
 
 ```bash
@@ -281,7 +281,13 @@ seeingbench evaluate-reference \
   --reconstruction outputs/m51-run/reconstruction.tif \
   --algorithm m51 \
   --output outputs/m51-run/reference-metrics.json \
-  --register-translation
+  --register-translation \
+  --registration-rotation-deg -1 \
+  --registration-rotation-deg 0 \
+  --registration-rotation-deg 1 \
+  --registration-scale 0.995 \
+  --registration-scale 1.0 \
+  --registration-scale 1.005
 ```
 
 ## Project Boundary

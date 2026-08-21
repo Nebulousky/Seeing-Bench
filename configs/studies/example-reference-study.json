@@ -4,6 +4,8 @@
   "frequency_bins": 24,
   "local_block_size_px": 32,
   "register_translation": true,
+  "registration_rotation_degrees": [0.0],
+  "registration_scales": [1.0],
   "algorithms": [
     {
       "name": "mean_stack",

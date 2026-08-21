@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -129,6 +130,8 @@ class ReferenceComparativeStudyConfig:
     frequency_bins: int = 24
     local_block_size_px: int = 32
     register_translation: bool = False
+    registration_rotation_degrees: tuple[float, ...] = ()
+    registration_scales: tuple[float, ...] = ()
 
     @classmethod
     def from_dict(
@@ -152,6 +155,14 @@ class ReferenceComparativeStudyConfig:
             frequency_bins=int(data.get("frequency_bins", 24)),
             local_block_size_px=int(data.get("local_block_size_px", 32)),
             register_translation=bool(data.get("register_translation", False)),
+            registration_rotation_degrees=_float_tuple(
+                data.get("registration_rotation_degrees", []),
+                "registration_rotation_degrees",
+            ),
+            registration_scales=_float_tuple(
+                data.get("registration_scales", []),
+                "registration_scales",
+            ),
         )
         config.validate()
         return config
@@ -161,6 +172,10 @@ class ReferenceComparativeStudyConfig:
             raise ValueError("frequency_bins must be positive")
         if self.local_block_size_px <= 0:
             raise ValueError("local_block_size_px must be positive")
+        if not all(math.isfinite(value) for value in self.registration_rotation_degrees):
+            raise ValueError("registration_rotation_degrees must contain only finite values")
+        if not all(math.isfinite(value) and value > 0.0 for value in self.registration_scales):
+            raise ValueError("registration_scales must contain only finite positive values")
         if len(self.algorithms) < 2:
             raise ValueError("reference comparative studies require at least two algorithms")
         names = [algorithm.name for algorithm in self.algorithms]
@@ -299,6 +314,8 @@ def run_reference_comparative_study(
             algorithm=algorithm.name,
             frequency_bins=config.frequency_bins,
             register_translation=config.register_translation,
+            registration_rotation_degrees=config.registration_rotation_degrees or None,
+            registration_scales=config.registration_scales or None,
             reconstruction_metadata_path=result_dir / "metadata.json",
         )
         save_reference_evaluation_report(report, metrics_path)
@@ -328,6 +345,8 @@ def run_reference_comparative_study(
         "frequency_bins": config.frequency_bins,
         "local_block_size_px": config.local_block_size_px,
         "register_translation": config.register_translation,
+        "registration_rotation_degrees": list(config.registration_rotation_degrees),
+        "registration_scales": list(config.registration_scales),
         "validation_boundary": (
             "study adapters consume only observation input frames; the standalone reference "
             "is loaded only by the evaluator after reconstruction outputs are written"
@@ -376,6 +395,14 @@ def _algorithm_dict(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("each study algorithm must be a JSON object")
     return value
+
+
+def _float_tuple(value: Any, field_name: str) -> tuple[float, ...]:
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        raise ValueError(f"{field_name} must be a list")
+    return tuple(float(item) for item in value)
 
 
 def _resolve_config_path(base_dir: Path, value: str) -> Path:

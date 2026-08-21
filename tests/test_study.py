@@ -282,6 +282,8 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
                 "reference": str(case_dir / "truth" / "latent.tif"),
                 "frequency_bins": 6,
                 "register_translation": True,
+                "registration_rotation_degrees": [0.0],
+                "registration_scales": [1.0],
                 "algorithms": [
                     {"name": "mean_stack", "kind": "builtin", "builtin": "mean_stack"},
                     {
@@ -318,11 +320,14 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
     comparison = json.loads((study_dir / "comparison.json").read_text(encoding="utf-8"))
     assert summary["benchmark_mode"] == "standalone_reference_study"
     assert summary["register_translation"]
+    assert summary["registration_rotation_degrees"] == [0.0]
+    assert summary["registration_scales"] == [1.0]
     assert summary["reference_path"] == str(case_dir / "truth" / "latent.tif")
     assert {row["kind"] for row in summary["algorithms"]} == {"builtin", "command"}
     assert len(comparison["rows"]) == 2
     for row in summary["algorithms"]:
         metrics = json.loads(Path(row["metrics"]).read_text(encoding="utf-8"))
         assert metrics["metadata"]["benchmark_mode"] == "standalone_reference"
+        assert metrics["metadata"]["registration"]["method"] == "global_similarity_grid_search"
         assert metrics["metadata"]["reconstruction_runtime_s"] is not None
         assert metrics["metadata"]["validation_boundary"]

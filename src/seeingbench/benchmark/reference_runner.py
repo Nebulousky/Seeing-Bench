@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import platform
 import time
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
 
 import seeingbench
+from seeingbench.benchmark.registration import register_global_similarity
 from seeingbench.benchmark.result import EvaluationReport
 from seeingbench.evaluation.false_detail import false_detail_score
 from seeingbench.evaluation.frequency import frequency_recovery_limit, radial_frequency_correlation
@@ -30,6 +32,8 @@ def evaluate_reference_reconstruction(
     algorithm: str,
     frequency_bins: int = 24,
     register_translation: bool = False,
+    registration_rotation_degrees: Sequence[float] | None = None,
+    registration_scales: Sequence[float] | None = None,
     reconstruction_metadata_path: Path | None = None,
 ) -> EvaluationReport:
     """Evaluate a reconstruction directly against a standalone reference image."""
@@ -42,8 +46,21 @@ def evaluate_reference_reconstruction(
     if reference.shape != reconstruction.shape:
         raise ValueError(f"shape mismatch: {reference.shape} != {reconstruction.shape}")
 
+    similarity_registration_requested = (
+        registration_rotation_degrees is not None or registration_scales is not None
+    )
     registration: dict[str, Any] = {"method": "none"}
-    if register_translation:
+    if similarity_registration_requested:
+        registered = register_global_similarity(
+            reference,
+            reconstruction,
+            rotation_degrees=registration_rotation_degrees or (0.0,),
+            scales=registration_scales or (1.0,),
+            register_translation=register_translation,
+        )
+        reconstruction = registered.image
+        registration = registered.metadata
+    elif register_translation:
         shift_x, shift_y = estimate_integer_translation(reference, reconstruction)
         reconstruction = apply_warp(
             reconstruction,

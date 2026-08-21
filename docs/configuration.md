@@ -142,8 +142,10 @@ runtime in `metadata.json`; evaluation remains a separate step.
 
 `seeingbench evaluate-reference` compares a standalone reference image (`.npy` or supported
 image file) with a reconstruction image. `--register-translation` permits only a global
-integer translation estimated by phase correlation before scoring; it does not rotate,
-scale, locally deform, or otherwise bend the reference to hide reconstruction errors.
+integer translation estimated by phase correlation before scoring. Repeated
+`--registration-rotation-deg` and `--registration-scale` values enable a constrained global
+similarity grid search around the image centre, scored by reference MSE. These controls do
+not locally deform or otherwise bend the reference to hide reconstruction errors.
 
 `seeingbench study run-config` accepts a JSON object with `case`, `frequency_bins`,
 `local_block_size_px`, and an `algorithms` list. Each algorithm has a stable `name` and
@@ -154,9 +156,10 @@ Relative `case` paths are resolved from the config file's parent directory.
 
 `seeingbench study run-reference-config` uses the same algorithm entries but evaluates each
 result against a standalone `reference` image path instead of synthetic retained truth. It
-supports `register_translation`, which applies only the constrained global integer
-translation registration from `evaluate-reference`. Relative `case` and `reference` paths
-are resolved from the config file's parent directory.
+supports `register_translation`, plus optional `registration_rotation_degrees` and
+`registration_scales` lists using the same constrained global registration from
+`evaluate-reference`. Relative `case` and `reference` paths are resolved from the config
+file's parent directory.
 
 ## Validation Rules
 

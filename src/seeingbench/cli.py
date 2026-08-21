@@ -162,6 +162,20 @@ def _build_parser() -> argparse.ArgumentParser:
     evaluate_reference.add_argument("--output", required=True, type=Path)
     evaluate_reference.add_argument("--frequency-bins", type=int, default=24)
     evaluate_reference.add_argument("--register-translation", action="store_true")
+    evaluate_reference.add_argument(
+        "--registration-rotation-deg",
+        action="append",
+        type=float,
+        dest="registration_rotation_degrees",
+        help="global rotation candidate in degrees; may be repeated",
+    )
+    evaluate_reference.add_argument(
+        "--registration-scale",
+        action="append",
+        type=float,
+        dest="registration_scales",
+        help="global scale candidate; may be repeated",
+    )
     evaluate_reference.set_defaults(func=_evaluate_reference)
 
     report = subparsers.add_parser("report", help="render metrics.json as Markdown")
@@ -468,6 +482,8 @@ def _evaluate_reference(args: argparse.Namespace) -> int:
         algorithm=args.algorithm,
         frequency_bins=args.frequency_bins,
         register_translation=args.register_translation,
+        registration_rotation_degrees=args.registration_rotation_degrees,
+        registration_scales=args.registration_scales,
     )
     save_reference_evaluation_report(report, args.output)
     return 0
