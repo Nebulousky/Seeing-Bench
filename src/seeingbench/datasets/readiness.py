@@ -355,6 +355,7 @@ def _product_file_status(
         "size_status": size_status,
         "declared_checksum": product.checksum,
         "label_declared_checksum": label_checksum,
+        "label_provenance": _label_provenance(label_status),
         "checksum_algorithm": checksum_algorithm,
         "computed_checksum": computed_checksum,
         "checksum_status": checksum_status,
@@ -487,6 +488,11 @@ def _label_product_size(label_status: dict[str, Any]) -> int | None:
     if isinstance(size, int):
         return size
     return None
+
+
+def _label_provenance(label_status: dict[str, Any]) -> dict[str, Any]:
+    provenance = label_status.get("summary", {}).get("provenance", {})
+    return provenance if isinstance(provenance, dict) else {}
 
 
 def _checksum_status(

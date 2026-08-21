@@ -246,6 +246,8 @@ def test_roi_readiness_uses_matching_label_checksum_and_size(tmp_path: Path) -> 
             file_name="tile.img",
             file_size=len(payload),
             md5=hashlib.md5(payload).hexdigest(),
+            logical_identifier="urn:nasa:pds:lroc:tile",
+            title="LROC Tile",
         ),
         encoding="utf-8",
     )
@@ -262,6 +264,8 @@ def test_roi_readiness_uses_matching_label_checksum_and_size(tmp_path: Path) -> 
     assert file_status["size_status"] == "ok"
     assert file_status["checksum_status"] == "ok"
     assert file_status["label_metadata"]["describes_product"]
+    assert file_status["label_provenance"]["logical_identifier"] == "urn:nasa:pds:lroc:tile"
+    assert file_status["label_provenance"]["title"] == "LROC Tile"
 
 
 def test_roi_readiness_does_not_apply_label_checksum_to_different_product(tmp_path: Path) -> None:
@@ -545,9 +549,24 @@ def _compatible_label_text() -> str:
     """
 
 
-def _compatible_xml_label_text(file_name: str, file_size: int, md5: str) -> str:
+def _compatible_xml_label_text(
+    file_name: str,
+    file_size: int,
+    md5: str,
+    logical_identifier: str = "",
+    title: str = "",
+) -> str:
+    identification = ""
+    if logical_identifier or title:
+        identification = f"""
+      <Identification_Area>
+        <logical_identifier>{logical_identifier}</logical_identifier>
+        <version_id>1.0</version_id>
+        <title>{title}</title>
+      </Identification_Area>"""
     return f"""<?xml version="1.0" encoding="UTF-8"?>
     <Product_Observational xmlns:cart="http://pds.nasa.gov/pds4/cart/v1">
+      {identification}
       <cart:Bounding_Coordinates>
         <cart:west_bounding_coordinate unit="deg">270.0</cart:west_bounding_coordinate>
         <cart:east_bounding_coordinate unit="deg">360.0</cart:east_bounding_coordinate>

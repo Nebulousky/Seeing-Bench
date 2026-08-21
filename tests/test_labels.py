@@ -15,6 +15,13 @@ def test_parse_pds_label_extracts_projection_bounds_resolution_and_image_fields(
     fields = parse_pds_label_text(
         """
         PDS_VERSION_ID = PDS3
+        PRODUCT_ID = "WAC_TILE"
+        DATA_SET_ID = "LRO-L-LROC-5-RDR-V1.0"
+        PRODUCER_ID = "LROC_TEAM"
+        PRODUCT_CREATION_TIME = 2026-08-15T00:00:00
+        MISSION_NAME = "LUNAR RECONNAISSANCE ORBITER"
+        INSTRUMENT_ID = "LROC"
+        TARGET_NAME = "MOON"
         MAP_PROJECTION_TYPE = "EQUIRECTANGULAR"
         MINIMUM_LATITUDE = 0.0 <DEGREE>
         MAXIMUM_LATITUDE = 60.0 <DEGREE>
@@ -33,6 +40,11 @@ def test_parse_pds_label_extracts_projection_bounds_resolution_and_image_fields(
     summary = label_summary(fields)
 
     assert summary["projection"] == "EQUIRECTANGULAR"
+    assert summary["provenance"]["product_id"] == "WAC_TILE"
+    assert summary["provenance"]["data_set_id"] == "LRO-L-LROC-5-RDR-V1.0"
+    assert summary["provenance"]["producer_id"] == "LROC_TEAM"
+    assert summary["provenance"]["instrument_id"] == "LROC"
+    assert summary["provenance"]["target_name"] == "MOON"
     assert summary["minimum_latitude"] == 0.0
     assert summary["maximum_latitude"] == 60.0
     assert summary["westernmost_longitude"] == 270.0
@@ -49,6 +61,16 @@ def test_parse_pds4_xml_label_extracts_projection_bounds_resolution_and_image_fi
     fields = parse_pds_label_text(
         """<?xml version="1.0" encoding="UTF-8"?>
         <Product_Observational xmlns:cart="http://pds.nasa.gov/pds4/cart/v1">
+          <Identification_Area>
+            <logical_identifier>urn:nasa:pds:lroc:test</logical_identifier>
+            <version_id>1.0</version_id>
+            <title>Test LROC Tile</title>
+            <Citation_Information>
+              <citation_desc>NASA PDS LROC test citation</citation_desc>
+              <publication_year>2026</publication_year>
+              <doi>10.0000/test</doi>
+            </Citation_Information>
+          </Identification_Area>
           <cart:Bounding_Coordinates>
             <cart:west_bounding_coordinate unit="deg">270.0</cart:west_bounding_coordinate>
             <cart:east_bounding_coordinate unit="deg">360.0</cart:east_bounding_coordinate>
@@ -78,6 +100,12 @@ def test_parse_pds4_xml_label_extracts_projection_bounds_resolution_and_image_fi
     summary = label_summary(fields)
 
     assert summary["projection"] == "Equirectangular"
+    assert summary["provenance"]["logical_identifier"] == "urn:nasa:pds:lroc:test"
+    assert summary["provenance"]["label_version_id"] == "1.0"
+    assert summary["provenance"]["title"] == "Test LROC Tile"
+    assert summary["provenance"]["citation_description"] == "NASA PDS LROC test citation"
+    assert summary["provenance"]["publication_year"] == 2026
+    assert summary["provenance"]["doi"] == "10.0000/test"
     assert summary["minimum_latitude"] == 0.0
     assert summary["maximum_latitude"] == 60.0
     assert summary["westernmost_longitude"] == 270.0

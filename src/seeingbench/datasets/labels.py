@@ -8,7 +8,10 @@ from typing import Any
 from xml.etree import ElementTree
 
 PDS_FIELD_NAMES = (
+    "DATA_SET_ID",
     "EASTERNMOST_LONGITUDE",
+    "INSTRUMENT_ID",
+    "INSTRUMENT_NAME",
     "LINE_SAMPLES",
     "LINES",
     "MAP_PROJECTION_TYPE",
@@ -16,8 +19,13 @@ PDS_FIELD_NAMES = (
     "MAP_SCALE",
     "MAXIMUM_LATITUDE",
     "MINIMUM_LATITUDE",
+    "MISSION_NAME",
+    "PRODUCER_ID",
+    "PRODUCT_CREATION_TIME",
+    "PRODUCT_ID",
     "SAMPLE_BITS",
     "SAMPLE_TYPE",
+    "TARGET_NAME",
     "WESTERNMOST_LONGITUDE",
 )
 
@@ -53,6 +61,20 @@ def _parse_pds4_xml_label(text: str) -> dict[str, Any]:
             continue
         if name == "map_projection_name":
             fields["map_projection_type"] = value
+        elif name == "logical_identifier":
+            fields["logical_identifier"] = value
+        elif name == "version_id":
+            fields["label_version_id"] = value
+        elif name == "title":
+            fields["title"] = value
+        elif name == "citation_desc":
+            fields["citation_description"] = value
+        elif name == "modification_date":
+            fields["product_creation_time"] = value
+        elif name == "publication_year":
+            fields["publication_year"] = _parse_value(value)
+        elif name == "doi":
+            fields["doi"] = value
         elif name == "south_bounding_coordinate":
             fields["minimum_latitude"] = _parse_value(value)
         elif name == "north_bounding_coordinate":
@@ -156,6 +178,7 @@ def label_summary(fields: dict[str, Any]) -> dict[str, Any]:
     """Return stable report fields extracted from a parsed label."""
 
     return {
+        "provenance": _label_provenance(fields),
         "projection": fields.get("map_projection_type"),
         "minimum_latitude": fields.get("minimum_latitude"),
         "maximum_latitude": fields.get("maximum_latitude"),
@@ -173,6 +196,26 @@ def label_summary(fields: dict[str, Any]) -> dict[str, Any]:
         "array_offset_bytes": fields.get("array_offset_bytes"),
         "missing_constant": fields.get("missing_constant"),
     }
+
+
+def _label_provenance(fields: dict[str, Any]) -> dict[str, Any]:
+    provenance_keys = (
+        "product_id",
+        "data_set_id",
+        "logical_identifier",
+        "label_version_id",
+        "title",
+        "citation_description",
+        "publication_year",
+        "doi",
+        "producer_id",
+        "product_creation_time",
+        "mission_name",
+        "instrument_name",
+        "instrument_id",
+        "target_name",
+    )
+    return {key: fields[key] for key in provenance_keys if fields.get(key) is not None}
 
 
 def roi_pixel_window(
