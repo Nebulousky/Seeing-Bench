@@ -61,6 +61,7 @@ class CommandLineAdapter:
 
     command: tuple[str, ...]
     name: str = "command_line"
+    version_command: tuple[str, ...] = ()
 
     def prepare(self, benchmark_case: Path, result_dir: Path) -> None:
         result_dir.mkdir(parents=True, exist_ok=True)
@@ -69,6 +70,7 @@ class CommandLineAdapter:
         if not self.command:
             raise ValueError("command must not be empty")
         started = time.perf_counter()
+        version = self._tool_version(benchmark_case, result_dir)
         completed = subprocess.run(
             [
                 part.format(case=str(benchmark_case), result=str(result_dir))
@@ -82,6 +84,8 @@ class CommandLineAdapter:
         metadata = {
             "adapter": self.name,
             "command": list(self.command),
+            "version_command": list(self.version_command),
+            "version": version,
             "returncode": completed.returncode,
             "runtime_s": time.perf_counter() - started,
             "stdout": completed.stdout,
@@ -94,6 +98,25 @@ class CommandLineAdapter:
     def collect_results(self, benchmark_case: Path, result_dir: Path) -> None:
         if not (result_dir / "reconstruction.tif").exists():
             raise FileNotFoundError("command did not produce result/reconstruction.tif")
+
+    def _tool_version(self, benchmark_case: Path, result_dir: Path) -> dict[str, object] | None:
+        if not self.version_command:
+            return None
+        completed = subprocess.run(
+            [
+                part.format(case=str(benchmark_case), result=str(result_dir))
+                for part in self.version_command
+            ],
+            cwd=benchmark_case.parent,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return {
+            "returncode": completed.returncode,
+            "stdout": completed.stdout.strip(),
+            "stderr": completed.stderr.strip(),
+        }
 
 
 @dataclass(frozen=True)

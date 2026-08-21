@@ -38,6 +38,7 @@ class StudyAlgorithmConfig:
     kind: str
     builtin: str | None = None
     command: tuple[str, ...] = ()
+    version_command: tuple[str, ...] = ()
     local_block_size_px: int | None = None
 
     @classmethod
@@ -49,11 +50,15 @@ class StudyAlgorithmConfig:
         command = data.get("command", [])
         if not isinstance(command, list):
             raise ValueError("study algorithm command must be a list")
+        version_command = data.get("version_command", [])
+        if not isinstance(version_command, list):
+            raise ValueError("study algorithm version_command must be a list")
         config = cls(
             name=str(data["name"]),
             kind=str(data["kind"]),
             builtin=None if data.get("builtin") is None else str(data["builtin"]),
             command=tuple(str(part) for part in command),
+            version_command=tuple(str(part) for part in version_command),
             local_block_size_px=None
             if data.get("local_block_size_px") is None
             else int(data["local_block_size_px"]),
@@ -71,6 +76,8 @@ class StudyAlgorithmConfig:
                 raise ValueError(f"unknown built-in study algorithm: {self.builtin}")
             if self.command:
                 raise ValueError("built-in study algorithms must not declare command")
+            if self.version_command:
+                raise ValueError("built-in study algorithms must not declare version_command")
         if self.kind == "command":
             if self.builtin is not None:
                 raise ValueError("command study algorithms must not declare builtin")
@@ -419,7 +426,11 @@ def _configured_adapter(
     | CommandLineAdapter
 ):
     if algorithm.kind == "command":
-        return CommandLineAdapter(command=algorithm.command, name=algorithm.name)
+        return CommandLineAdapter(
+            command=algorithm.command,
+            name=algorithm.name,
+            version_command=algorithm.version_command,
+        )
     if algorithm.builtin is None:
         raise ValueError("built-in study algorithm is missing builtin")
     return _builtin_adapter(
@@ -453,12 +464,18 @@ def _algorithm_readiness(algorithm: StudyAlgorithmConfig) -> dict[str, Any]:
 
     executable = algorithm.command[0]
     resolved = _resolve_executable(executable)
+    version_executable = algorithm.version_command[0] if algorithm.version_command else None
+    resolved_version = (
+        _resolve_executable(version_executable) if version_executable is not None else None
+    )
     return {
         "algorithm": algorithm.name,
         "kind": algorithm.kind,
         "ready": resolved is not None,
         "executable": executable,
         "resolved_executable": resolved,
+        "version_executable": version_executable,
+        "resolved_version_executable": resolved_version,
         "reason": None if resolved is not None else "command_executable_not_found",
     }
 

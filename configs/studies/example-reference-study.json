@@ -21,6 +21,11 @@
         "path/to/external_tool.py",
         "{case}",
         "{result}"
+      ],
+      "version_command": [
+        "python",
+        "path/to/external_tool.py",
+        "--version"
       ]
     }
   ]

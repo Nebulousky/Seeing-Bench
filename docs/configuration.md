@@ -157,6 +157,9 @@ not locally deform or otherwise bend the reference to hide reconstruction errors
 `kind`. `builtin` entries select one of `mean_stack`, `translation_stack`, or
 `local_block_stack`. `command` entries provide an explicit argument list with `{case}` and
 `{result}` placeholders and must write `reconstruction.tif` in the result directory.
+Command entries may also define `version_command`; it is run before reconstruction and its
+return code, stdout, and stderr are recorded in the result metadata and carried into
+evaluation reports.
 Relative `case` paths are resolved from the config file's parent directory.
 
 `seeingbench study tool-readiness` accepts the same configured-study files, including

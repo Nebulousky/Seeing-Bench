@@ -76,6 +76,7 @@ def test_cli_configured_study_runs_builtin_and_external_command(tmp_path: Path) 
     case_dir = tmp_path / "case"
     study_dir = tmp_path / "study"
     script_path = tmp_path / "external_tool.py"
+    version_script_path = tmp_path / "external_version.py"
     config_path = tmp_path / "study.json"
     script_path.write_text(
         "\n".join(
@@ -91,6 +92,7 @@ def test_cli_configured_study_runs_builtin_and_external_command(tmp_path: Path) 
         ),
         encoding="utf-8",
     )
+    version_script_path.write_text("print('external-tool 1.2.3')\n", encoding="utf-8")
 
     assert (
         main(
@@ -134,6 +136,10 @@ def test_cli_configured_study_runs_builtin_and_external_command(tmp_path: Path) 
                             "{case}",
                             "{result}",
                         ],
+                        "version_command": [
+                            sys.executable,
+                            str(version_script_path),
+                        ],
                     },
                 ],
             }
@@ -169,6 +175,12 @@ def test_cli_configured_study_runs_builtin_and_external_command(tmp_path: Path) 
     metadata = json.loads((Path(external["result_dir"]) / "metadata.json").read_text())
     assert metadata["adapter"] == "external_echo"
     assert metadata["runtime_s"] > 0.0
+    assert metadata["version"]["returncode"] == 0
+    assert metadata["version"]["stdout"] == "external-tool 1.2.3"
+    metrics = json.loads(Path(external["metrics"]).read_text(encoding="utf-8"))
+    assert metrics["metadata"]["reconstruction_metadata"]["version"]["stdout"] == (
+        "external-tool 1.2.3"
+    )
 
 
 def test_cli_configured_study_accepts_utf8_bom_config(tmp_path: Path) -> None:
@@ -247,6 +259,7 @@ def test_cli_study_tool_readiness_reports_command_availability(tmp_path: Path) -
                         "name": "python_tool",
                         "kind": "command",
                         "command": [sys.executable, "--version"],
+                        "version_command": [sys.executable, "--version"],
                     },
                 ],
             }
@@ -273,6 +286,7 @@ def test_cli_study_tool_readiness_reports_command_availability(tmp_path: Path) -
     assert report["algorithm_count"] == 2
     python_tool = next(row for row in report["algorithms"] if row["algorithm"] == "python_tool")
     assert python_tool["resolved_executable"] == sys.executable
+    assert python_tool["resolved_version_executable"] == sys.executable
     assert report["validation_boundary"]
 
 
