@@ -30,6 +30,7 @@ def render_markdown_report(report: dict[str, Any]) -> str:
     reference_limitations = metadata.get("reference_limitations", [])
     reference_provenance = metadata.get("reference_provenance", {})
     reference_generation = metadata.get("reference_generation", {})
+    photometry = metadata.get("photometric_normalization", {})
     lines = [
         f"# SeeingBench Report: {report['algorithm']}",
         "",
@@ -43,6 +44,7 @@ def render_markdown_report(report: dict[str, Any]) -> str:
         f"- Random seed: `{config.get('random_seed', 'unknown')}`",
         f"- Git commit: `{git.get('commit', 'unknown')}`",
         f"- Git dirty: `{git.get('dirty', 'unknown')}`",
+        f"- Photometric normalization: `{_photometry_summary(photometry)}`",
         "",
         "## Image Similarity",
         "",
@@ -140,6 +142,18 @@ def _format_float(value: Any) -> str:
     if isinstance(value, str):
         return value
     return f"{float(value):.6g}"
+
+
+def _photometry_summary(value: Any) -> str:
+    if not isinstance(value, dict):
+        return "unknown"
+    method = str(value.get("method", "unknown"))
+    if not value.get("applied", False):
+        reason = value.get("reason")
+        return method if reason is None else f"{method} skipped: {reason}"
+    scale = _format_float(value.get("scale"))
+    offset = _format_float(value.get("offset"))
+    return f"{method}; scale={scale}; offset={offset}"
 
 
 def _format_diagnostic(value: Any) -> str:

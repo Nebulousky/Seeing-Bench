@@ -156,6 +156,11 @@ translation estimated by phase correlation before scoring. Repeated
 `--registration-rotation-deg` and `--registration-scale` values enable a constrained global
 similarity grid search around the image centre, scored by reference MSE. These controls do
 not locally deform or otherwise bend the reference to hide reconstruction errors.
+`--photometric-normalization linear` optionally fits one global linear brightness/contrast
+mapping from reconstruction to reference after geometric registration and before scoring.
+The fit records scale, offset, and pre/post MSE in metrics metadata; it does not clip pixel
+values and it is skipped with an explicit reason when the reconstruction has degenerate
+contrast. The default `none` leaves intensities unchanged.
 
 `seeingbench study run-config` accepts a JSON object with `case`, `frequency_bins`,
 `local_block_size_px`, and an `algorithms` list. Each algorithm has a stable `name` and
@@ -175,9 +180,10 @@ make the command return non-zero.
 `seeingbench study run-reference-config` uses the same algorithm entries but evaluates each
 result against a standalone `reference` image path instead of synthetic retained truth. It
 supports optional `reference_metadata`, `register_translation`,
-`registration_rotation_degrees`, and `registration_scales` using the same constrained
-reference evaluation from `evaluate-reference`. Relative `case`, `reference`, and
-`reference_metadata` paths are resolved from the config file's parent directory.
+`registration_rotation_degrees`, `registration_scales`, and
+`photometric_normalization` using the same constrained reference evaluation from
+`evaluate-reference`. Relative `case`, `reference`, and `reference_metadata` paths are
+resolved from the config file's parent directory.
 
 ## Validation Rules
 

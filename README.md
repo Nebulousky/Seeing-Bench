@@ -294,7 +294,7 @@ seeingbench run-command \
 ```
 
 Evaluate a real/reference image pair directly, with optional constrained global similarity
-registration:
+registration and global linear photometric normalization:
 
 ```bash
 seeingbench evaluate-reference \
@@ -304,6 +304,7 @@ seeingbench evaluate-reference \
   --algorithm m51 \
   --output outputs/m51-run/reference-metrics.json \
   --register-translation \
+  --photometric-normalization linear \
   --registration-rotation-deg -1 \
   --registration-rotation-deg 0 \
   --registration-rotation-deg 1 \

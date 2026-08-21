@@ -142,6 +142,7 @@ class ReferenceComparativeStudyConfig:
     register_translation: bool = False
     registration_rotation_degrees: tuple[float, ...] = ()
     registration_scales: tuple[float, ...] = ()
+    photometric_normalization: str = "none"
 
     @classmethod
     def from_dict(
@@ -176,6 +177,7 @@ class ReferenceComparativeStudyConfig:
                 data.get("registration_scales", []),
                 "registration_scales",
             ),
+            photometric_normalization=str(data.get("photometric_normalization", "none")),
         )
         config.validate()
         return config
@@ -189,6 +191,8 @@ class ReferenceComparativeStudyConfig:
             raise ValueError("registration_rotation_degrees must contain only finite values")
         if not all(math.isfinite(value) and value > 0.0 for value in self.registration_scales):
             raise ValueError("registration_scales must contain only finite positive values")
+        if self.photometric_normalization not in {"none", "linear"}:
+            raise ValueError("photometric_normalization must be 'none' or 'linear'")
         if len(self.algorithms) < 2:
             raise ValueError("reference comparative studies require at least two algorithms")
         names = [algorithm.name for algorithm in self.algorithms]
@@ -370,6 +374,7 @@ def run_reference_comparative_study(
             registration_scales=config.registration_scales or None,
             reference_metadata_path=config.reference_metadata_path,
             reconstruction_metadata_path=result_dir / "metadata.json",
+            photometric_normalization=config.photometric_normalization,
         )
         save_reference_evaluation_report(report, metrics_path)
         metrics_paths.append(metrics_path)
@@ -403,6 +408,7 @@ def run_reference_comparative_study(
         "register_translation": config.register_translation,
         "registration_rotation_degrees": list(config.registration_rotation_degrees),
         "registration_scales": list(config.registration_scales),
+        "photometric_normalization": config.photometric_normalization,
         "provenance": runtime_provenance(),
         "validation_boundary": (
             "study adapters consume only observation input frames; the standalone reference "

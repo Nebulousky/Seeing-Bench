@@ -170,6 +170,12 @@ def _build_parser() -> argparse.ArgumentParser:
     evaluate_reference.add_argument("--frequency-bins", type=int, default=24)
     evaluate_reference.add_argument("--register-translation", action="store_true")
     evaluate_reference.add_argument(
+        "--photometric-normalization",
+        choices=("none", "linear"),
+        default="none",
+        help="optional global brightness/contrast normalization before scoring",
+    )
+    evaluate_reference.add_argument(
         "--registration-rotation-deg",
         action="append",
         type=float,
@@ -513,6 +519,7 @@ def _evaluate_reference(args: argparse.Namespace) -> int:
         registration_rotation_degrees=args.registration_rotation_degrees,
         registration_scales=args.registration_scales,
         reference_metadata_path=args.reference_metadata,
+        photometric_normalization=args.photometric_normalization,
     )
     save_reference_evaluation_report(report, args.output)
     return 0

@@ -78,6 +78,39 @@ def test_reference_evaluation_similarity_registration_improves_mse(tmp_path: Pat
     assert registration["candidate_count"] == 9
 
 
+def test_reference_evaluation_linear_photometric_normalization_fits_known_transform(
+    tmp_path: Path,
+) -> None:
+    reference = crater_field((64, 64), seed=45)
+    reconstruction = 0.7 * reference + 0.2
+    reference_path = tmp_path / "reference.npy"
+    reconstruction_path = tmp_path / "reconstruction.npy"
+    np.save(reference_path, reference)
+    np.save(reconstruction_path, reconstruction)
+
+    raw = evaluate_reference_reconstruction(
+        reference_path,
+        reconstruction_path,
+        algorithm="scaled_offset",
+        frequency_bins=8,
+    )
+    normalised = evaluate_reference_reconstruction(
+        reference_path,
+        reconstruction_path,
+        algorithm="scaled_offset",
+        frequency_bins=8,
+        photometric_normalization="linear",
+    )
+
+    photometry = normalised.metadata["photometric_normalization"]
+    assert normalised.image_similarity["mse"] < raw.image_similarity["mse"] * 1e-20
+    assert photometry["method"] == "linear_least_squares"
+    assert photometry["applied"]
+    np.testing.assert_allclose(photometry["scale"], 1.0 / 0.7)
+    np.testing.assert_allclose(photometry["offset"], -0.2 / 0.7)
+    assert photometry["mse_after"] < photometry["mse_before"]
+
+
 def test_reference_evaluation_uses_reconstruction_metadata_runtime(tmp_path: Path) -> None:
     reference = crater_field((32, 32), seed=18)
     reference_path = tmp_path / "reference.npy"

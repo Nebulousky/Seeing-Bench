@@ -36,6 +36,7 @@ def evaluate_reference_reconstruction(
     registration_scales: Sequence[float] | None = None,
     reference_metadata_path: Path | None = None,
     reconstruction_metadata_path: Path | None = None,
+    photometric_normalization: str = "none",
 ) -> EvaluationReport:
     """Evaluate a reconstruction directly against a standalone reference image."""
 
@@ -74,6 +75,11 @@ def evaluate_reference_reconstruction(
             "constraint": "global translation only",
         }
 
+    reconstruction, photometry = _apply_photometric_normalization(
+        reference,
+        reconstruction,
+        photometric_normalization,
+    )
     frequency_curve = radial_frequency_correlation(reference, reconstruction, bins=frequency_bins)
     recovery_limit = frequency_recovery_limit(frequency_curve, threshold=0.5)
     reference_metadata = _load_optional_json_metadata(reference_metadata_path, "reference metadata")
@@ -110,6 +116,7 @@ def evaluate_reference_reconstruction(
             "reconstruction_path": str(reconstruction_path),
             "benchmark_mode": "standalone_reference",
             "registration": registration,
+            "photometric_normalization": photometry,
             "reconstruction_metadata": reconstruction_metadata,
             "reconstruction_runtime_s": _optional_float(reconstruction_metadata.get("runtime_s")),
             "evaluation_runtime_s": elapsed_s,
@@ -148,6 +155,61 @@ def _load_optional_json_metadata(path: Path | None, label: str) -> dict[str, Any
     if not isinstance(data, dict):
         raise ValueError(f"{label} must be a JSON object: {path}")
     return data
+
+
+def _apply_photometric_normalization(
+    reference: np.ndarray,
+    reconstruction: np.ndarray,
+    mode: str,
+) -> tuple[np.ndarray, dict[str, Any]]:
+    if mode == "none":
+        return reconstruction, {"method": "none", "applied": False}
+    if mode != "linear":
+        raise ValueError("photometric_normalization must be 'none' or 'linear'")
+
+    reference_flat = reference.ravel()
+    reconstruction_flat = reconstruction.ravel()
+    mse_before = _mean_squared_error(reference_flat, reconstruction_flat)
+    reference_mean = float(np.mean(reference_flat))
+    reconstruction_mean = float(np.mean(reconstruction_flat))
+    reconstruction_centered = reconstruction_flat - reconstruction_mean
+    reference_centered = reference_flat - reference_mean
+    denominator = float(np.dot(reconstruction_centered, reconstruction_centered))
+    if denominator <= np.finfo(np.float64).eps * reconstruction_flat.size:
+        return reconstruction, {
+            "method": "linear_least_squares",
+            "applied": False,
+            "reason": "degenerate_reconstruction_contrast",
+            "mse_before": mse_before,
+            "mse_after": mse_before,
+            "validation_boundary": (
+                "requested photometric normalization was skipped because the "
+                "reconstruction has effectively constant intensity"
+            ),
+        }
+
+    scale = float(np.dot(reconstruction_centered, reference_centered) / denominator)
+    offset = float(reference_mean - scale * reconstruction_mean)
+    normalised = scale * reconstruction + offset
+    return normalised, {
+        "method": "linear_least_squares",
+        "applied": True,
+        "scale": scale,
+        "offset": offset,
+        "reference_mean": reference_mean,
+        "reconstruction_mean": reconstruction_mean,
+        "mse_before": mse_before,
+        "mse_after": _mean_squared_error(reference_flat, normalised.ravel()),
+        "validation_boundary": (
+            "global linear brightness/contrast fit is applied after geometric "
+            "registration and before metrics; values are not clipped"
+        ),
+    }
+
+
+def _mean_squared_error(reference: np.ndarray, reconstruction: np.ndarray) -> float:
+    difference = reference - reconstruction
+    return float(np.mean(difference * difference))
 
 
 def _metadata_list(metadata: dict[str, Any], key: str) -> list[Any]:

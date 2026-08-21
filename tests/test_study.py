@@ -382,6 +382,7 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
                 "register_translation": True,
                 "registration_rotation_degrees": [0.0],
                 "registration_scales": [1.0],
+                "photometric_normalization": "linear",
                 "algorithms": [
                     {"name": "mean_stack", "kind": "builtin", "builtin": "mean_stack"},
                     {
@@ -420,6 +421,7 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
     assert summary["register_translation"]
     assert summary["registration_rotation_degrees"] == [0.0]
     assert summary["registration_scales"] == [1.0]
+    assert summary["photometric_normalization"] == "linear"
     assert summary["reference_path"] == str(case_dir / "truth" / "latent.tif")
     assert summary["reference_metadata_path"] == str(reference_metadata_path)
     assert summary["provenance"]["git"]["commit"]
@@ -429,6 +431,9 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
         metrics = json.loads(Path(row["metrics"]).read_text(encoding="utf-8"))
         assert metrics["metadata"]["benchmark_mode"] == "standalone_reference"
         assert metrics["metadata"]["registration"]["method"] == "global_similarity_grid_search"
+        assert metrics["metadata"]["photometric_normalization"]["method"] == (
+            "linear_least_squares"
+        )
         assert metrics["metadata"]["reference_limitations"] == [
             "local_linear_orthographic_projection"
         ]

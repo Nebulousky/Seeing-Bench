@@ -23,6 +23,7 @@ class ComparisonRow:
     evaluation_runtime_s: float | None
     git_commit: str | None
     git_dirty: bool | None
+    photometric_normalization: dict[str, Any]
     reference_limitations: tuple[str, ...]
     reference_provenance: dict[str, Any]
     score: float
@@ -40,6 +41,7 @@ class ComparisonRow:
             "evaluation_runtime_s": self.evaluation_runtime_s,
             "git_commit": self.git_commit,
             "git_dirty": self.git_dirty,
+            "photometric_normalization": self.photometric_normalization,
             "reference_limitations": list(self.reference_limitations),
             "reference_provenance": self.reference_provenance,
             "score": self.score,
@@ -182,6 +184,7 @@ def _row_from_report(metrics_path: Path) -> ComparisonRow:
         evaluation_runtime_s=_optional_float(metadata.get("evaluation_runtime_s")),
         git_commit=None if not isinstance(git, dict) else _optional_str(git.get("commit")),
         git_dirty=None if not isinstance(git, dict) else _optional_bool(git.get("dirty")),
+        photometric_normalization=_metadata_dict(metadata, "photometric_normalization"),
         reference_limitations=_metadata_str_tuple(metadata, "reference_limitations"),
         reference_provenance=_metadata_dict(metadata, "reference_provenance"),
         score=score,
