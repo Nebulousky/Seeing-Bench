@@ -247,7 +247,12 @@ position, timestamp, camera dimensions, and Earth-Moon distance are preserved as
 When `--spice-cache-root` is provided and the observation lists local kernels, the renderer
 uses SPICE-derived topocentric Earth-Moon distance for diffraction matching and records
 sub-observer, sub-solar, phase, and angular-radius metadata. It still reports limitations
-rather than pretending to apply Earth-view pixel reprojection or illumination rendering.
+rather than pretending to apply Earth-view pixel reprojection.
+
+`--apply-illumination` multiplies the selected reflectance reference by a simple
+Lambertian shading map derived from the `--terrain-role` DEM reference and SPICE sub-solar
+metadata. This is an explicit first-order structural aid, not a full lunar photometric
+model; reports label it `simple_lambertian_illumination_model`.
 
 `geometry spice-readiness` checks the SPICE side of that contract. Observation metadata must
 include `utc_start`, `observer.latitude`, `observer.longitude`, `observer.altitude_m`, and

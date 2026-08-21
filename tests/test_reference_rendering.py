@@ -107,6 +107,50 @@ def test_render_telescope_matched_reference_uses_spice_geometry_distance(
     )
 
 
+def test_render_telescope_matched_reference_can_apply_terrain_illumination(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_spice = FakeSpice()
+    monkeypatch.setattr(
+        "seeingbench.geometry.observation.importlib.import_module",
+        lambda name: fake_spice if name == "spiceypy" else None,
+    )
+    cache_root = tmp_path / "cache"
+    kernel_path = cache_root / "spice" / "test.bsp"
+    kernel_path.parent.mkdir(parents=True)
+    kernel_path.write_bytes(b"kernel")
+    reflectance = np.ones((65, 65), dtype=np.float64)
+    terrain = np.tile(np.arange(65, dtype=np.float64), (65, 1)) * 100.0
+    reflectance_path = tmp_path / "reflectance.npy"
+    terrain_path = tmp_path / "terrain.npy"
+    np.save(reflectance_path, reflectance)
+    np.save(terrain_path, terrain)
+    surface_report = _write_surface_report_with_terrain(
+        tmp_path,
+        reflectance_path,
+        terrain_path,
+    )
+    observation = _write_spice_observation(tmp_path)
+
+    report = render_telescope_matched_reference(
+        surface_report,
+        observation,
+        tmp_path / "telescope",
+        role="reflectance",
+        spice_cache_root=cache_root,
+        apply_illumination=True,
+    )
+
+    output = np.load(Path(report["references"][0]["output"]))
+    illumination = report["references"][0]["illumination"]
+    assert illumination["applied"]
+    assert illumination["shading_mean"] == pytest.approx(2.0**-0.5)
+    assert float(np.mean(output)) < 1.0
+    assert "simple_lambertian_illumination_model" in report["limitations"]
+    assert "no_illumination_model" not in report["limitations"]
+
+
 def test_cli_telescope_reference_returns_nonzero_when_metadata_is_incomplete(
     tmp_path: Path,
 ) -> None:
@@ -148,6 +192,41 @@ def _write_surface_report(tmp_path: Path, source_path: Path) -> Path:
                         "shape": [65, 65],
                         "dtype": "float64",
                     }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return report_path
+
+
+def _write_surface_report_with_terrain(
+    tmp_path: Path,
+    reflectance_path: Path,
+    terrain_path: Path,
+) -> Path:
+    report_path = tmp_path / "surface-reference-report.json"
+    report_path.write_text(
+        json.dumps(
+            {
+                "roi": {
+                    "center_lat_deg": 0.0,
+                    "center_lon_deg": 0.0,
+                },
+                "target_resolution_m_per_px": 100.0,
+                "references": [
+                    {
+                        "role": "reflectance",
+                        "output": str(reflectance_path),
+                        "shape": [65, 65],
+                        "dtype": "float64",
+                    },
+                    {
+                        "role": "terrain",
+                        "output": str(terrain_path),
+                        "shape": [65, 65],
+                        "dtype": "float64",
+                    },
                 ],
             }
         ),

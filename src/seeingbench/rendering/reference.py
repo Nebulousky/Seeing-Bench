@@ -15,6 +15,7 @@ from seeingbench.observations import (
     load_observation_metadata,
     telescope_config_from_observation,
 )
+from seeingbench.rendering.illumination import lambertian_shading_from_dem
 from seeingbench.simulation.psf import gaussian_blur
 from seeingbench.simulation.telescope import (
     diffraction_gaussian_sigma_px,
@@ -28,6 +29,8 @@ def render_telescope_matched_reference(
     output_root: Path,
     role: str | None = None,
     spice_cache_root: Path | None = None,
+    apply_illumination: bool = False,
+    terrain_role: str = "terrain",
 ) -> dict[str, Any]:
     """Blur a local surface reference to the observation telescope's diffraction limit."""
 
@@ -50,6 +53,7 @@ def render_telescope_matched_reference(
                 f"spice_geometry_{reason}" for reason in spice_geometry_report["blocking_reasons"]
             )
     source_reference = _select_reference(surface_report, role)
+    terrain_reference = _select_reference(surface_report, terrain_role)
     output_root.mkdir(parents=True, exist_ok=True)
 
     if source_reference is None:
@@ -69,12 +73,24 @@ def render_telescope_matched_reference(
 
     source = np.load(Path(str(source_reference["output"]))).astype(np.float64)
     reference_resolution_m_per_px = float(surface_report["target_resolution_m_per_px"])
+    illumination = _illumination_report(
+        source,
+        source_reference,
+        terrain_reference,
+        surface_report,
+        spice_geometry_report,
+        reference_resolution_m_per_px,
+        apply_illumination,
+    )
+    source_for_matching = source
+    if illumination["applied"]:
+        source_for_matching = source * illumination.pop("_shading")
     sigma_px = telescope_diffraction_sigma_in_reference_px(
         telescope,
         reference_resolution_m_per_px,
         distance_m,
     )
-    matched = gaussian_blur(source, sigma_px)
+    matched = gaussian_blur(source_for_matching, sigma_px)
     destination = output_root / f"telescope-matched-{_safe_name(str(source_reference['role']))}.npy"
     np.save(destination, matched)
 
@@ -99,10 +115,11 @@ def render_telescope_matched_reference(
                 "spice_geometry": None
                 if spice_geometry_report is None
                 else spice_geometry_report.get("geometry"),
+                "illumination": illumination,
             }
         ],
         "spice_geometry_report": spice_geometry_report,
-        "limitations": _limitations(distance_limitations, spice_geometry_report),
+        "limitations": _limitations(distance_limitations, spice_geometry_report, illumination),
     }
     _write_report(output_root, report)
     return report
@@ -153,26 +170,86 @@ def _blocked_report(
         "blocking_reasons": blocking_reasons,
         "references": [],
         "spice_geometry_report": spice_geometry_report,
-        "limitations": _limitations(distance_limitations, spice_geometry_report),
+        "limitations": _limitations(distance_limitations, spice_geometry_report, None),
+    }
+
+
+def _illumination_report(
+    source: np.ndarray,
+    source_reference: dict[str, Any],
+    terrain_reference: dict[str, Any] | None,
+    surface_report: dict[str, Any],
+    spice_geometry_report: dict[str, Any] | None,
+    reference_resolution_m_per_px: float,
+    apply_illumination: bool,
+) -> dict[str, Any]:
+    if not apply_illumination:
+        return {"applied": False, "reason": "not_requested"}
+    geometry = None if spice_geometry_report is None else spice_geometry_report.get("geometry")
+    if not isinstance(geometry, dict):
+        return {"applied": False, "reason": "missing_spice_geometry"}
+    if terrain_reference is None:
+        return {"applied": False, "reason": "missing_terrain_reference"}
+
+    terrain = np.load(Path(str(terrain_reference["output"]))).astype(np.float64)
+    if terrain.shape != source.shape:
+        return {
+            "applied": False,
+            "reason": "terrain_shape_mismatch",
+            "terrain_shape": list(terrain.shape),
+            "source_shape": list(source.shape),
+        }
+    roi = surface_report.get("roi", {})
+    center_latitude_deg = float(roi.get("center_lat_deg", 0.0))
+    center_longitude_deg = float(roi.get("center_lon_deg", 0.0))
+    shading = lambertian_shading_from_dem(
+        terrain,
+        reference_resolution_m_per_px,
+        center_latitude_deg=center_latitude_deg,
+        center_longitude_deg_east=center_longitude_deg,
+        sub_solar_latitude_deg=float(geometry["sub_solar_latitude_deg"]),
+        sub_solar_longitude_deg_east=float(geometry["sub_solar_longitude_deg_east"]),
+    )
+    return {
+        "applied": True,
+        "method": "local DEM Lambertian shading",
+        "reflectance_role": source_reference["role"],
+        "terrain_role": terrain_reference["role"],
+        "terrain_source": terrain_reference["output"],
+        "center_latitude_deg": center_latitude_deg,
+        "center_longitude_deg_east": center_longitude_deg,
+        "sub_solar_latitude_deg": geometry["sub_solar_latitude_deg"],
+        "sub_solar_longitude_deg_east": geometry["sub_solar_longitude_deg_east"],
+        "shading_min": float(np.min(shading)),
+        "shading_mean": float(np.mean(shading)),
+        "shading_max": float(np.max(shading)),
+        "_shading": shading,
     }
 
 
 def _limitations(
     distance_limitations: list[str],
     spice_geometry_report: dict[str, Any] | None,
+    illumination: dict[str, Any] | None,
 ) -> list[str]:
+    illumination_applied = illumination is not None and bool(illumination.get("applied"))
+    illumination_limitations = (
+        ["simple_lambertian_illumination_model"]
+        if illumination_applied
+        else ["no_illumination_model"]
+    )
     if spice_geometry_report is not None and spice_geometry_report["ready"]:
         return [
             "not_earth_view_projected",
             "spice_libration_and_illumination_metadata_not_yet_applied_to_pixels",
-            "no_illumination_model",
+            *illumination_limitations,
             *distance_limitations,
         ]
     return [
         "not_spice_backed",
         "not_earth_view_projected",
         "no_libration_or_orientation_solution",
-        "no_illumination_model",
+        *illumination_limitations,
         *distance_limitations,
     ]
 
