@@ -25,6 +25,9 @@ def test_reproject_extracted_roi_products_preserves_equal_target_grid(tmp_path: 
     reference = np.load(reference_path)
     assert report["reference_count"] == 1
     assert report["target_shape"] == [4, 4]
+    assert report["references"][0]["label_provenance"]["logical_identifier"] == (
+        "urn:nasa:pds:tiny"
+    )
     assert np.array_equal(reference, source)
     assert (tmp_path / "reference" / "surface-reference-report.json").exists()
 
@@ -109,6 +112,10 @@ def _write_extraction_report(
                         "output": str(source_path),
                         "shape": [4, 4],
                         "dtype": "float64",
+                        "label_provenance": {
+                            "logical_identifier": "urn:nasa:pds:tiny",
+                            "title": "Tiny ROI Product",
+                        },
                         "label_summary": {"map_scale_m_per_px": 1000.0},
                         "roi_pixel_window": {
                             "row_start": 3,

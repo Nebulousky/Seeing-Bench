@@ -25,6 +25,8 @@ def test_extract_verified_roi_products_reads_supported_local_img_window(tmp_path
 
     assert report["extracted_count"] == 1
     assert report["skipped_count"] == 0
+    provenance = report["extracted"][0]["label_provenance"]
+    assert provenance["logical_identifier"] == "urn:nasa:pds:tiny"
     assert extracted.shape == (4, 4)
     assert np.array_equal(extracted, source_array[3:7, 3:7].astype(np.float64))
     assert (tmp_path / "out" / "extraction-report.json").exists()
@@ -143,6 +145,11 @@ def _write_extractable_case(
 def _label_text(file_name: str, file_size: int, md5: str) -> str:
     return f"""<?xml version="1.0" encoding="UTF-8"?>
     <Product_Observational xmlns:cart="http://pds.nasa.gov/pds4/cart/v1">
+      <Identification_Area>
+        <logical_identifier>urn:nasa:pds:tiny</logical_identifier>
+        <version_id>1.0</version_id>
+        <title>Tiny ROI Product</title>
+      </Identification_Area>
       <cart:Bounding_Coordinates>
         <cart:west_bounding_coordinate unit="deg">0.0</cart:west_bounding_coordinate>
         <cart:east_bounding_coordinate unit="deg">10.0</cart:east_bounding_coordinate>

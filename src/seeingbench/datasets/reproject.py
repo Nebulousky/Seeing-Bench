@@ -59,6 +59,8 @@ def reproject_extracted_roi_products(
                 "dtype": str(reference.dtype),
                 "source_shape": list(source.shape),
                 "source_map_scale_m_per_px": _source_map_scale(extracted),
+                "label_provenance": extracted.get("label_provenance", {}),
+                "label_summary": extracted.get("label_summary", {}),
                 "method": "label-window bilinear resampling",
             }
         )

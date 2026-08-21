@@ -240,13 +240,15 @@ instrument/target fields, readiness reports preserve them under `label_provenanc
 `datasets extract-roi` currently extracts `.IMG` files whose cached PDS4 labels describe a
 two-dimensional image with `IEEE754LSBSingle` or `SignedLSB2` samples. The command refuses
 missing, unverified, incompatible, or unsupported products and writes extracted windows as
-NumPy `.npy` arrays plus an extraction report.
+NumPy `.npy` arrays plus an extraction report. Extracted rows preserve `label_provenance`
+from readiness reports.
 
 `datasets reproject-roi` consumes that extraction report and resamples each extracted
 map window onto the ROI's declared `target_resolution_m_per_px` grid. This is a basic
 north-up map-window reprojection for Phase 2 dataset plumbing; it is not yet the SPICE-backed
 Earth-view renderer and does not apply illumination, libration, local registration, or
-telescope PSF matching.
+telescope PSF matching. Surface-reference rows preserve source `label_provenance` and
+`label_summary` fields for downstream reference reports.
 
 `datasets fetch-products` is the guarded bulk downloader. It refuses product files without
 `expected_size_bytes`, requires `--max-total-bytes`, streams to a temporary `.part` file,

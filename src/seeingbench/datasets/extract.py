@@ -58,6 +58,7 @@ def extract_verified_roi_products(
                     "output": str(destination),
                     "shape": list(array.shape),
                     "dtype": str(array.dtype),
+                    "label_provenance": file_status["label_provenance"],
                     "label_summary": file_status["label_metadata"]["summary"],
                     "roi_pixel_window": file_status["label_metadata"]["roi_pixel_window"],
                 }
