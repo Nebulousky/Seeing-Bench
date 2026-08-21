@@ -382,6 +382,8 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
                 "register_translation": True,
                 "registration_rotation_degrees": [0.0],
                 "registration_scales": [1.0],
+                "registration_shear_x": [0.0],
+                "registration_shear_y": [0.0],
                 "photometric_normalization": "linear",
                 "algorithms": [
                     {"name": "mean_stack", "kind": "builtin", "builtin": "mean_stack"},
@@ -421,6 +423,8 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
     assert summary["register_translation"]
     assert summary["registration_rotation_degrees"] == [0.0]
     assert summary["registration_scales"] == [1.0]
+    assert summary["registration_shear_x"] == [0.0]
+    assert summary["registration_shear_y"] == [0.0]
     assert summary["photometric_normalization"] == "linear"
     assert summary["reference_path"] == str(case_dir / "truth" / "latent.tif")
     assert summary["reference_metadata_path"] == str(reference_metadata_path)

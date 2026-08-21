@@ -34,6 +34,8 @@ def evaluate_reference_reconstruction(
     register_translation: bool = False,
     registration_rotation_degrees: Sequence[float] | None = None,
     registration_scales: Sequence[float] | None = None,
+    registration_shear_x: Sequence[float] | None = None,
+    registration_shear_y: Sequence[float] | None = None,
     reference_metadata_path: Path | None = None,
     reconstruction_metadata_path: Path | None = None,
     photometric_normalization: str = "none",
@@ -49,7 +51,10 @@ def evaluate_reference_reconstruction(
         raise ValueError(f"shape mismatch: {reference.shape} != {reconstruction.shape}")
 
     similarity_registration_requested = (
-        registration_rotation_degrees is not None or registration_scales is not None
+        registration_rotation_degrees is not None
+        or registration_scales is not None
+        or registration_shear_x is not None
+        or registration_shear_y is not None
     )
     registration: dict[str, Any] = {"method": "none"}
     if similarity_registration_requested:
@@ -59,6 +64,8 @@ def evaluate_reference_reconstruction(
             rotation_degrees=registration_rotation_degrees or (0.0,),
             scales=registration_scales or (1.0,),
             register_translation=register_translation,
+            shear_x=registration_shear_x or (0.0,),
+            shear_y=registration_shear_y or (0.0,),
         )
         reconstruction = registered.image
         registration = registered.metadata
@@ -326,6 +333,13 @@ def _registration_uncertainty(registration: dict[str, Any]) -> dict[str, Any]:
             "global_similarity_registration",
             "low",
             "registration was constrained to the declared global similarity candidate grid",
+            candidate_count=registration.get("candidate_count"),
+        )
+    if method == "global_affine_grid_search":
+        return _uncertainty_factor(
+            "global_affine_registration",
+            "low",
+            "registration was constrained to the declared global affine candidate grid",
             candidate_count=registration.get("candidate_count"),
         )
     if method == "integer_phase_correlation_translation":

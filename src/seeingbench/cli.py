@@ -189,6 +189,20 @@ def _build_parser() -> argparse.ArgumentParser:
         dest="registration_scales",
         help="global scale candidate; may be repeated",
     )
+    evaluate_reference.add_argument(
+        "--registration-shear-x",
+        action="append",
+        type=float,
+        dest="registration_shear_x",
+        help="global x-shear candidate; may be repeated",
+    )
+    evaluate_reference.add_argument(
+        "--registration-shear-y",
+        action="append",
+        type=float,
+        dest="registration_shear_y",
+        help="global y-shear candidate; may be repeated",
+    )
     evaluate_reference.set_defaults(func=_evaluate_reference)
 
     report = subparsers.add_parser("report", help="render metrics.json as Markdown")
@@ -518,6 +532,8 @@ def _evaluate_reference(args: argparse.Namespace) -> int:
         register_translation=args.register_translation,
         registration_rotation_degrees=args.registration_rotation_degrees,
         registration_scales=args.registration_scales,
+        registration_shear_x=args.registration_shear_x,
+        registration_shear_y=args.registration_shear_y,
         reference_metadata_path=args.reference_metadata,
         photometric_normalization=args.photometric_normalization,
     )

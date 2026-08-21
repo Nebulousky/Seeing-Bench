@@ -157,9 +157,10 @@ set of quality flags derived from reference limitations, provenance presence, ge
 registration, and photometric normalization metadata. These flags expose known validation
 limits but are not calibrated statistical confidence intervals. `--register-translation`
 permits only a global integer translation estimated by phase correlation before scoring. Repeated
-`--registration-rotation-deg` and `--registration-scale` values enable a constrained global
-similarity grid search around the image centre, scored by reference MSE. These controls do
-not locally deform or otherwise bend the reference to hide reconstruction errors.
+`--registration-rotation-deg`, `--registration-scale`, `--registration-shear-x`, and
+`--registration-shear-y` values enable a constrained global similarity or affine grid
+search around the image centre, scored by reference MSE. These controls do not locally
+deform or otherwise bend the reference to hide reconstruction errors.
 `--photometric-normalization linear` optionally fits one global linear brightness/contrast
 mapping from reconstruction to reference after geometric registration and before scoring.
 The fit records scale, offset, and pre/post MSE in metrics metadata; it does not clip pixel
@@ -184,10 +185,10 @@ make the command return non-zero.
 `seeingbench study run-reference-config` uses the same algorithm entries but evaluates each
 result against a standalone `reference` image path instead of synthetic retained truth. It
 supports optional `reference_metadata`, `register_translation`,
-`registration_rotation_degrees`, `registration_scales`, and
-`photometric_normalization` using the same constrained reference evaluation from
-`evaluate-reference`. Relative `case`, `reference`, and `reference_metadata` paths are
-resolved from the config file's parent directory.
+`registration_rotation_degrees`, `registration_scales`, `registration_shear_x`,
+`registration_shear_y`, and `photometric_normalization` using the same constrained
+reference evaluation from `evaluate-reference`. Relative `case`, `reference`, and
+`reference_metadata` paths are resolved from the config file's parent directory.
 
 ## Validation Rules
 

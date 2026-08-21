@@ -312,7 +312,9 @@ seeingbench evaluate-reference \
   --registration-rotation-deg 1 \
   --registration-scale 0.995 \
   --registration-scale 1.0 \
-  --registration-scale 1.005
+  --registration-scale 1.005 \
+  --registration-shear-x 0.0 \
+  --registration-shear-y 0.0
 ```
 
 ## Project Boundary

@@ -142,6 +142,8 @@ class ReferenceComparativeStudyConfig:
     register_translation: bool = False
     registration_rotation_degrees: tuple[float, ...] = ()
     registration_scales: tuple[float, ...] = ()
+    registration_shear_x: tuple[float, ...] = ()
+    registration_shear_y: tuple[float, ...] = ()
     photometric_normalization: str = "none"
 
     @classmethod
@@ -177,6 +179,14 @@ class ReferenceComparativeStudyConfig:
                 data.get("registration_scales", []),
                 "registration_scales",
             ),
+            registration_shear_x=_float_tuple(
+                data.get("registration_shear_x", []),
+                "registration_shear_x",
+            ),
+            registration_shear_y=_float_tuple(
+                data.get("registration_shear_y", []),
+                "registration_shear_y",
+            ),
             photometric_normalization=str(data.get("photometric_normalization", "none")),
         )
         config.validate()
@@ -191,6 +201,10 @@ class ReferenceComparativeStudyConfig:
             raise ValueError("registration_rotation_degrees must contain only finite values")
         if not all(math.isfinite(value) and value > 0.0 for value in self.registration_scales):
             raise ValueError("registration_scales must contain only finite positive values")
+        if not all(math.isfinite(value) for value in self.registration_shear_x):
+            raise ValueError("registration_shear_x must contain only finite values")
+        if not all(math.isfinite(value) for value in self.registration_shear_y):
+            raise ValueError("registration_shear_y must contain only finite values")
         if self.photometric_normalization not in {"none", "linear"}:
             raise ValueError("photometric_normalization must be 'none' or 'linear'")
         if len(self.algorithms) < 2:
@@ -372,6 +386,8 @@ def run_reference_comparative_study(
             register_translation=config.register_translation,
             registration_rotation_degrees=config.registration_rotation_degrees or None,
             registration_scales=config.registration_scales or None,
+            registration_shear_x=config.registration_shear_x or None,
+            registration_shear_y=config.registration_shear_y or None,
             reference_metadata_path=config.reference_metadata_path,
             reconstruction_metadata_path=result_dir / "metadata.json",
             photometric_normalization=config.photometric_normalization,
@@ -408,6 +424,8 @@ def run_reference_comparative_study(
         "register_translation": config.register_translation,
         "registration_rotation_degrees": list(config.registration_rotation_degrees),
         "registration_scales": list(config.registration_scales),
+        "registration_shear_x": list(config.registration_shear_x),
+        "registration_shear_y": list(config.registration_shear_y),
         "photometric_normalization": config.photometric_normalization,
         "provenance": runtime_provenance(),
         "validation_boundary": (

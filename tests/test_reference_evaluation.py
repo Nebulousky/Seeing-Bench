@@ -6,7 +6,10 @@ from pathlib import Path
 import numpy as np
 
 from seeingbench.benchmark.reference_runner import evaluate_reference_reconstruction
-from seeingbench.benchmark.registration import apply_global_similarity_transform
+from seeingbench.benchmark.registration import (
+    apply_global_affine_transform,
+    apply_global_similarity_transform,
+)
 from seeingbench.cli import main
 from seeingbench.reconstruction.alignment import constant_displacement
 from seeingbench.simulation.source import crater_field
@@ -76,6 +79,41 @@ def test_reference_evaluation_similarity_registration_improves_mse(tmp_path: Pat
     assert registration["selected_rotation_degrees"] == -4.0
     assert registration["selected_scale"] == 1.0 / 1.04
     assert registration["candidate_count"] == 9
+
+
+def test_reference_evaluation_affine_registration_recovers_global_shear(
+    tmp_path: Path,
+) -> None:
+    reference = crater_field((64, 64), seed=47)
+    reconstruction = apply_global_affine_transform(reference, shear_x=0.06)
+    reference_path = tmp_path / "reference.npy"
+    reconstruction_path = tmp_path / "reconstruction.npy"
+    np.save(reference_path, reference)
+    np.save(reconstruction_path, reconstruction)
+
+    raw = evaluate_reference_reconstruction(
+        reference_path,
+        reconstruction_path,
+        algorithm="sheared",
+        frequency_bins=8,
+    )
+    registered = evaluate_reference_reconstruction(
+        reference_path,
+        reconstruction_path,
+        algorithm="sheared",
+        frequency_bins=8,
+        registration_rotation_degrees=(0.0,),
+        registration_scales=(1.0,),
+        registration_shear_x=(0.0, -0.06),
+        registration_shear_y=(0.0,),
+    )
+
+    registration = registered.metadata["registration"]
+    assert registered.image_similarity["mse"] < raw.image_similarity["mse"]
+    assert registration["method"] == "global_affine_grid_search"
+    assert registration["selected_shear_x"] == -0.06
+    assert registration["selected_shear_y"] == 0.0
+    assert registration["candidate_count"] == 2
 
 
 def test_reference_evaluation_linear_photometric_normalization_fits_known_transform(
@@ -238,6 +276,10 @@ def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
                 "0",
                 "--registration-scale",
                 "1",
+                "--registration-shear-x",
+                "0",
+                "--registration-shear-y",
+                "0",
             ]
         )
         == 0
@@ -247,6 +289,7 @@ def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
     assert report["algorithm"] == "perfect"
     assert report["metadata"]["benchmark_mode"] == "standalone_reference"
     assert report["metadata"]["registration"]["method"] == "global_similarity_grid_search"
+    assert report["metadata"]["registration"]["selected_shear_x"] == 0.0
     assert report["metadata"]["reference_limitations"] == ["simple_lambertian_illumination_model"]
     assert report["metadata"]["reference_provenance"]["logical_identifier"] == (
         "urn:nasa:pds:cli-reference"
