@@ -133,6 +133,14 @@ seeingbench study run-config \
   --output outputs/configured-study
 ```
 
+Run a configured study that evaluates each result against a standalone lunar reference:
+
+```bash
+seeingbench study run-reference-config \
+  --config configs/studies/example-reference-study.json \
+  --output outputs/reference-study
+```
+
 Run a compact empirical synthetic sweep across seeing and noise settings:
 
 ```bash

@@ -42,6 +42,30 @@ def test_reference_evaluation_translation_registration_improves_mse(tmp_path: Pa
     assert registered.metadata["evaluation_runtime_s"] > 0.0
 
 
+def test_reference_evaluation_uses_reconstruction_metadata_runtime(tmp_path: Path) -> None:
+    reference = crater_field((32, 32), seed=18)
+    reference_path = tmp_path / "reference.npy"
+    reconstruction_path = tmp_path / "reconstruction.npy"
+    metadata_path = tmp_path / "metadata.json"
+    np.save(reference_path, reference)
+    np.save(reconstruction_path, reference.copy())
+    metadata_path.write_text(
+        json.dumps({"adapter": "external", "runtime_s": 1.25}),
+        encoding="utf-8",
+    )
+
+    report = evaluate_reference_reconstruction(
+        reference_path,
+        reconstruction_path,
+        algorithm="external",
+        frequency_bins=6,
+        reconstruction_metadata_path=metadata_path,
+    )
+
+    assert report.metadata["reconstruction_runtime_s"] == 1.25
+    assert report.metadata["reconstruction_metadata"]["adapter"] == "external"
+
+
 def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
     reference = crater_field((32, 32), seed=19)
     reference_path = tmp_path / "reference.npy"

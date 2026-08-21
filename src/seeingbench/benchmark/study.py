@@ -8,6 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from seeingbench.benchmark.compare import write_comparison_json, write_comparison_markdown
+from seeingbench.benchmark.reference_runner import (
+    evaluate_reference_reconstruction,
+    save_reference_evaluation_report,
+)
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
@@ -115,6 +119,56 @@ class ComparativeStudyConfig:
             raise ValueError(f"duplicate study algorithm name(s): {', '.join(duplicates)}")
 
 
+@dataclass(frozen=True)
+class ReferenceComparativeStudyConfig:
+    """Config for comparing reconstructed observations against a standalone reference."""
+
+    case_dir: Path
+    reference_path: Path
+    algorithms: tuple[StudyAlgorithmConfig, ...]
+    frequency_bins: int = 24
+    local_block_size_px: int = 32
+    register_translation: bool = False
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: dict[str, Any],
+        base_dir: Path,
+    ) -> ReferenceComparativeStudyConfig:
+        required = {"case", "reference", "algorithms"}
+        missing = sorted(required - set(data))
+        if missing:
+            raise ValueError(f"reference study config is missing field(s): {', '.join(missing)}")
+        algorithm_data = data["algorithms"]
+        if not isinstance(algorithm_data, list):
+            raise ValueError("reference study config algorithms must be a list")
+        config = cls(
+            case_dir=_resolve_config_path(base_dir, str(data["case"])),
+            reference_path=_resolve_config_path(base_dir, str(data["reference"])),
+            algorithms=tuple(
+                StudyAlgorithmConfig.from_dict(_algorithm_dict(item)) for item in algorithm_data
+            ),
+            frequency_bins=int(data.get("frequency_bins", 24)),
+            local_block_size_px=int(data.get("local_block_size_px", 32)),
+            register_translation=bool(data.get("register_translation", False)),
+        )
+        config.validate()
+        return config
+
+    def validate(self) -> None:
+        if self.frequency_bins <= 0:
+            raise ValueError("frequency_bins must be positive")
+        if self.local_block_size_px <= 0:
+            raise ValueError("local_block_size_px must be positive")
+        if len(self.algorithms) < 2:
+            raise ValueError("reference comparative studies require at least two algorithms")
+        names = [algorithm.name for algorithm in self.algorithms]
+        duplicates = sorted({name for name in names if names.count(name) > 1})
+        if duplicates:
+            raise ValueError(f"duplicate study algorithm name(s): {', '.join(duplicates)}")
+
+
 def load_comparative_study_config(path: Path) -> ComparativeStudyConfig:
     """Load a JSON comparative study config."""
 
@@ -122,6 +176,15 @@ def load_comparative_study_config(path: Path) -> ComparativeStudyConfig:
     if not isinstance(data, dict):
         raise ValueError("study config must be a JSON object")
     return ComparativeStudyConfig.from_dict(data, path.parent)
+
+
+def load_reference_comparative_study_config(path: Path) -> ReferenceComparativeStudyConfig:
+    """Load a JSON standalone-reference comparative study config."""
+
+    data = json.loads(path.read_text(encoding="utf-8-sig"))
+    if not isinstance(data, dict):
+        raise ValueError("reference study config must be a JSON object")
+    return ReferenceComparativeStudyConfig.from_dict(data, path.parent)
 
 
 def run_builtin_baseline_study(
@@ -204,6 +267,70 @@ def run_comparative_study(
         "validation_boundary": (
             "study adapters consume only benchmark input frames; evaluation consumes retained "
             "truth after reconstruction outputs are written"
+        ),
+    }
+    (output_root / "study-summary.json").write_text(
+        json.dumps(summary, indent=2),
+        encoding="utf-8",
+    )
+    return summary
+
+
+def run_reference_comparative_study(
+    config: ReferenceComparativeStudyConfig,
+    output_root: Path,
+) -> dict[str, Any]:
+    """Run adapters and compare reconstructions against a standalone reference."""
+
+    config.validate()
+    output_root.mkdir(parents=True, exist_ok=True)
+    result_rows: list[dict[str, Any]] = []
+    metrics_paths: list[Path] = []
+    for algorithm in config.algorithms:
+        result_dir = output_root / "results" / _safe_name(algorithm.name)
+        adapter = _configured_adapter(algorithm, config.local_block_size_px)
+        adapter.prepare(config.case_dir, result_dir)
+        adapter.execute(config.case_dir, result_dir)
+        adapter.collect_results(config.case_dir, result_dir)
+        metrics_path = result_dir / "metrics.json"
+        report = evaluate_reference_reconstruction(
+            reference_path=config.reference_path,
+            reconstruction_path=result_dir / "reconstruction.tif",
+            algorithm=algorithm.name,
+            frequency_bins=config.frequency_bins,
+            register_translation=config.register_translation,
+            reconstruction_metadata_path=result_dir / "metadata.json",
+        )
+        save_reference_evaluation_report(report, metrics_path)
+        metrics_paths.append(metrics_path)
+        result_rows.append(
+            {
+                "algorithm": algorithm.name,
+                "kind": algorithm.kind,
+                "result_dir": str(result_dir),
+                "metrics": str(metrics_path),
+            }
+        )
+
+    comparison_json = output_root / "comparison.json"
+    comparison_markdown = output_root / "comparison.md"
+    write_comparison_json(metrics_paths, comparison_json)
+    write_comparison_markdown(metrics_paths, comparison_markdown)
+    summary = {
+        "case_dir": str(config.case_dir),
+        "reference_path": str(config.reference_path),
+        "output_root": str(output_root),
+        "benchmark_mode": "standalone_reference_study",
+        "algorithm_count": len(result_rows),
+        "algorithms": result_rows,
+        "comparison_json": str(comparison_json),
+        "comparison_markdown": str(comparison_markdown),
+        "frequency_bins": config.frequency_bins,
+        "local_block_size_px": config.local_block_size_px,
+        "register_translation": config.register_translation,
+        "validation_boundary": (
+            "study adapters consume only observation input frames; the standalone reference "
+            "is loaded only by the evaluator after reconstruction outputs are written"
         ),
     }
     (output_root / "study-summary.json").write_text(

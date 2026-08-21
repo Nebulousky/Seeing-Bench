@@ -229,3 +229,100 @@ def test_cli_configured_study_accepts_utf8_bom_config(tmp_path: Path) -> None:
 
     summary = json.loads((study_dir / "study-summary.json").read_text(encoding="utf-8"))
     assert summary["algorithm_count"] == 2
+
+
+def test_cli_reference_configured_study_compares_against_standalone_reference(
+    tmp_path: Path,
+) -> None:
+    case_dir = tmp_path / "case"
+    study_dir = tmp_path / "reference-study"
+    script_path = tmp_path / "external_tool.py"
+    config_path = tmp_path / "reference-study.json"
+    script_path.write_text(
+        "\n".join(
+            [
+                "from pathlib import Path",
+                "import shutil",
+                "import sys",
+                "case = Path(sys.argv[1])",
+                "result = Path(sys.argv[2])",
+                "result.mkdir(parents=True, exist_ok=True)",
+                "shutil.copy2(case / 'input' / 'frame_000001.tif', result / 'reconstruction.tif')",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "simulate",
+                "--output",
+                str(case_dir),
+                "--frames",
+                "3",
+                "--height",
+                "32",
+                "--width",
+                "32",
+                "--seed",
+                "37",
+                "--noise-sigma",
+                "0.0",
+                "--warp-scale",
+                "0.2",
+            ]
+        )
+        == 0
+    )
+    config_path.write_text(
+        json.dumps(
+            {
+                "case": str(case_dir),
+                "reference": str(case_dir / "truth" / "latent.tif"),
+                "frequency_bins": 6,
+                "register_translation": True,
+                "algorithms": [
+                    {"name": "mean_stack", "kind": "builtin", "builtin": "mean_stack"},
+                    {
+                        "name": "external_echo",
+                        "kind": "command",
+                        "command": [
+                            sys.executable,
+                            str(script_path),
+                            "{case}",
+                            "{result}",
+                        ],
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert (
+        main(
+            [
+                "study",
+                "run-reference-config",
+                "--config",
+                str(config_path),
+                "--output",
+                str(study_dir),
+            ]
+        )
+        == 0
+    )
+
+    summary = json.loads((study_dir / "study-summary.json").read_text(encoding="utf-8"))
+    comparison = json.loads((study_dir / "comparison.json").read_text(encoding="utf-8"))
+    assert summary["benchmark_mode"] == "standalone_reference_study"
+    assert summary["register_translation"]
+    assert summary["reference_path"] == str(case_dir / "truth" / "latent.tif")
+    assert {row["kind"] for row in summary["algorithms"]} == {"builtin", "command"}
+    assert len(comparison["rows"]) == 2
+    for row in summary["algorithms"]:
+        metrics = json.loads(Path(row["metrics"]).read_text(encoding="utf-8"))
+        assert metrics["metadata"]["benchmark_mode"] == "standalone_reference"
+        assert metrics["metadata"]["reconstruction_runtime_s"] is not None
+        assert metrics["metadata"]["validation_boundary"]

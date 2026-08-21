@@ -23,8 +23,10 @@ from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
 from seeingbench.benchmark.study import (
     load_comparative_study_config,
+    load_reference_comparative_study_config,
     run_builtin_baseline_study,
     run_comparative_study,
+    run_reference_comparative_study,
 )
 from seeingbench.datasets.extract import extract_verified_roi_products
 from seeingbench.datasets.manifests import (
@@ -178,6 +180,14 @@ def _build_parser() -> argparse.ArgumentParser:
     run_study_config.add_argument("--config", required=True, type=Path)
     run_study_config.add_argument("--output", required=True, type=Path)
     run_study_config.set_defaults(func=_study_run_config)
+
+    run_reference_study_config = study_subparsers.add_parser(
+        "run-reference-config",
+        help="run a JSON-configured study against a standalone reference image",
+    )
+    run_reference_study_config.add_argument("--config", required=True, type=Path)
+    run_reference_study_config.add_argument("--output", required=True, type=Path)
+    run_reference_study_config.set_defaults(func=_study_run_reference_config)
 
     experiment = subparsers.add_parser("experiment", help="experiment orchestration")
     experiment_subparsers = experiment.add_subparsers(required=True)
@@ -467,6 +477,13 @@ def _study_builtin_baselines(args: argparse.Namespace) -> int:
 def _study_run_config(args: argparse.Namespace) -> int:
     config = load_comparative_study_config(args.config)
     summary = run_comparative_study(config, args.output)
+    sys.stdout.write(f"{json.dumps(summary, indent=2)}\n")
+    return 0
+
+
+def _study_run_reference_config(args: argparse.Namespace) -> int:
+    config = load_reference_comparative_study_config(args.config)
+    summary = run_reference_comparative_study(config, args.output)
     sys.stdout.write(f"{json.dumps(summary, indent=2)}\n")
     return 0
 

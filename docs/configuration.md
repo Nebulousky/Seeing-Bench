@@ -142,6 +142,12 @@ scale, locally deform, or otherwise bend the reference to hide reconstruction er
 `{result}` placeholders and must write `reconstruction.tif` in the result directory.
 Relative `case` paths are resolved from the config file's parent directory.
 
+`seeingbench study run-reference-config` uses the same algorithm entries but evaluates each
+result against a standalone `reference` image path instead of synthetic retained truth. It
+supports `register_translation`, which applies only the constrained global integer
+translation registration from `evaluate-reference`. Relative `case` and `reference` paths
+are resolved from the config file's parent directory.
+
 ## Validation Rules
 
 - Image arrays must be finite two-dimensional `float64` values.

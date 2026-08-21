@@ -30,6 +30,7 @@ def evaluate_reference_reconstruction(
     algorithm: str,
     frequency_bins: int = 24,
     register_translation: bool = False,
+    reconstruction_metadata_path: Path | None = None,
 ) -> EvaluationReport:
     """Evaluate a reconstruction directly against a standalone reference image."""
 
@@ -57,6 +58,7 @@ def evaluate_reference_reconstruction(
 
     frequency_curve = radial_frequency_correlation(reference, reconstruction, bins=frequency_bins)
     recovery_limit = frequency_recovery_limit(frequency_curve, threshold=0.5)
+    reconstruction_metadata = _load_reconstruction_metadata(reconstruction_metadata_path)
     elapsed_s = time.perf_counter() - started
     return EvaluationReport(
         algorithm=algorithm,
@@ -78,7 +80,8 @@ def evaluate_reference_reconstruction(
             "reconstruction_path": str(reconstruction_path),
             "benchmark_mode": "standalone_reference",
             "registration": registration,
-            "reconstruction_runtime_s": None,
+            "reconstruction_metadata": reconstruction_metadata,
+            "reconstruction_runtime_s": _optional_float(reconstruction_metadata.get("runtime_s")),
             "evaluation_runtime_s": elapsed_s,
             "seeingbench_version": seeingbench.__version__,
             "python": platform.python_version(),
@@ -105,6 +108,19 @@ def _load_reference_array(path: Path) -> np.ndarray:
         array = load_grayscale_image(path)
     validate_grayscale_image(array)
     return cast(np.ndarray, array)
+
+
+def _load_reconstruction_metadata(path: Path | None) -> dict[str, Any]:
+    if path is None or not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"reconstruction metadata must be a JSON object: {path}")
+    return data
+
+
+def _optional_float(value: Any) -> float | None:
+    return None if value is None else float(value)
 
 
 def _json_safe(value: Any) -> Any:
