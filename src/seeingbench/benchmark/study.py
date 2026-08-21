@@ -332,7 +332,7 @@ def run_comparative_study(
     """Run a configured comparative study and write metrics/comparison artifacts."""
 
     config.validate()
-    _assert_study_readiness(config)
+    tool_readiness = _assert_study_readiness(config)
     output_root.mkdir(parents=True, exist_ok=True)
     result_rows: list[dict[str, Any]] = []
     metrics_paths: list[Path] = []
@@ -376,6 +376,7 @@ def run_comparative_study(
         "comparison_markdown": str(comparison_markdown),
         "frequency_bins": config.frequency_bins,
         "local_block_size_px": config.local_block_size_px,
+        "tool_readiness": tool_readiness,
         "provenance": runtime_provenance(),
         "validation_boundary": (
             "study adapters consume only benchmark input frames; evaluation consumes retained "
@@ -396,7 +397,7 @@ def run_reference_comparative_study(
     """Run adapters and compare reconstructions against a standalone reference."""
 
     config.validate()
-    _assert_study_readiness(config)
+    tool_readiness = _assert_study_readiness(config)
     output_root.mkdir(parents=True, exist_ok=True)
     result_rows: list[dict[str, Any]] = []
     metrics_paths: list[Path] = []
@@ -459,6 +460,7 @@ def run_reference_comparative_study(
         "registration_shear_x": list(config.registration_shear_x),
         "registration_shear_y": list(config.registration_shear_y),
         "photometric_normalization": config.photometric_normalization,
+        "tool_readiness": tool_readiness,
         "provenance": runtime_provenance(),
         "validation_boundary": (
             "study adapters consume only observation input frames; the standalone reference "
@@ -559,10 +561,10 @@ def _algorithm_readiness(algorithm: StudyAlgorithmConfig) -> dict[str, Any]:
 
 def _assert_study_readiness(
     config: ComparativeStudyConfig | ReferenceComparativeStudyConfig,
-) -> None:
+) -> dict[str, Any]:
     readiness = build_study_tool_readiness(config)
     if readiness["ready"]:
-        return
+        return readiness
     reasons = ", ".join(str(reason) for reason in readiness["blocking_reasons"])
     raise RuntimeError(f"study is not ready to run: {reasons}")
 

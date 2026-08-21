@@ -57,6 +57,7 @@ def test_cli_builtin_baseline_study_runs_and_compares_all_baselines(tmp_path: Pa
     summary = json.loads((study_dir / "study-summary.json").read_text(encoding="utf-8"))
     comparison = json.loads((study_dir / "comparison.json").read_text(encoding="utf-8"))
     assert summary["algorithm_count"] == 3
+    assert summary["tool_readiness"]["ready"]
     assert {row["algorithm"] for row in summary["algorithms"]} == {
         "mean_stack",
         "translation_stack",
@@ -166,6 +167,7 @@ def test_cli_configured_study_runs_builtin_and_external_command(tmp_path: Path) 
     summary = json.loads((study_dir / "study-summary.json").read_text(encoding="utf-8"))
     comparison = json.loads((study_dir / "comparison.json").read_text(encoding="utf-8"))
     assert summary["algorithm_count"] == 2
+    assert summary["tool_readiness"]["ready"]
     assert {row["algorithm"] for row in summary["algorithms"]} == {
         "mean_stack",
         "external_echo",
@@ -591,6 +593,7 @@ def test_cli_reference_configured_study_compares_against_standalone_reference(
     summary = json.loads((study_dir / "study-summary.json").read_text(encoding="utf-8"))
     comparison = json.loads((study_dir / "comparison.json").read_text(encoding="utf-8"))
     assert summary["benchmark_mode"] == "standalone_reference_study"
+    assert summary["tool_readiness"]["ready"]
     assert summary["register_translation"]
     assert summary["registration_rotation_degrees"] == [0.0]
     assert summary["registration_scales"] == [1.0]

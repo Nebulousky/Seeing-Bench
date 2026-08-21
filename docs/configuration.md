@@ -181,7 +181,8 @@ evaluation reports. `existing_result` entries provide a `result_dir` that alread
 the standard result contract, allowing manually run GUI tools such as third-party stackers
 to be copied into a study without rerunning them.
 Configured studies preflight command executables and existing result directories before any
-algorithm is run, so missing local tools do not leave partial study outputs.
+algorithm is run, so missing local tools do not leave partial study outputs. The passing
+readiness report is copied into `study-summary.json` as `tool_readiness`.
 Relative `case` paths are resolved from the config file's parent directory.
 
 `seeingbench study tool-readiness` accepts the same configured-study files, including
