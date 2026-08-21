@@ -63,10 +63,12 @@ blur, explicit integer sensor-grid downsampling, explicit sensor saturation meta
 TIFF/NumPy benchmark export, baseline mean-stack adapter, global and local block translation
 stack adapters, image/structure/frequency/false-detail/warp metrics, diffraction-relative
 frequency interpretation, Markdown reports, comparison reports, richer diagnostics, CLI
-commands, and unit tests. LRO/LOLA/NAC/SPICE integration and real Earth-view rendering are
-not implemented. Phase 2 now has metadata-only ROI readiness checks for local cache
-presence and declared checksums; these checks do not download bulk products or render
-real-data references.
+commands, and unit tests. Phase 2 now has manifests, metadata/label fetching, ROI
+readiness checks for local cache presence and declared checksums, explicit no-download ROI
+download plans, verified local IMG window extraction, and basic map-window reprojection
+into ROI reference grids. LRO/LOLA/NAC/SPICE Earth-view rendering is not implemented, and
+the dataset commands do not download bulk products unless a future explicit downloader is
+added.
 
 ## Related
 

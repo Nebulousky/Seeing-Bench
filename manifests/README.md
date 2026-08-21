@@ -49,6 +49,14 @@ seeingbench datasets extract-roi \
   --output-root outputs/copernicus-roi
 ```
 
+Resample extracted products into a common ROI reference grid:
+
+```bash
+seeingbench datasets reproject-roi \
+  --extraction-report outputs/copernicus-roi/extraction-report.json \
+  --output-root outputs/copernicus-reference
+```
+
 Inspect local ROI readiness without downloading bulk products:
 
 ```bash

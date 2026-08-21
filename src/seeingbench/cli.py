@@ -24,6 +24,7 @@ from seeingbench.datasets.manifests import (
     validate_manifest_files,
 )
 from seeingbench.datasets.readiness import build_roi_download_plan, build_roi_readiness_report
+from seeingbench.datasets.reproject import reproject_extracted_roi_products
 from seeingbench.io.images import load_grayscale_image
 from seeingbench.reconstruction.adapter import (
     BaselineStackAdapter,
@@ -189,6 +190,14 @@ def _build_parser() -> argparse.ArgumentParser:
     extract_roi.add_argument("--manifest-root", type=Path, default=Path("."))
     extract_roi.add_argument("--output-root", required=True, type=Path)
     extract_roi.set_defaults(func=_datasets_extract_roi)
+
+    reproject_roi = dataset_subparsers.add_parser(
+        "reproject-roi",
+        help="resample extracted ROI products onto the declared target grid",
+    )
+    reproject_roi.add_argument("--extraction-report", required=True, type=Path)
+    reproject_roi.add_argument("--output-root", required=True, type=Path)
+    reproject_roi.set_defaults(func=_datasets_reproject_roi)
     return parser
 
 
@@ -392,6 +401,12 @@ def _datasets_extract_roi(args: argparse.Namespace) -> int:
     )
     sys.stdout.write(f"{json.dumps(report, indent=2)}\n")
     return 0 if report["extracted_count"] > 0 else 1
+
+
+def _datasets_reproject_roi(args: argparse.Namespace) -> int:
+    report = reproject_extracted_roi_products(args.extraction_report, args.output_root)
+    sys.stdout.write(f"{json.dumps(report, indent=2)}\n")
+    return 0 if report["reference_count"] > 0 else 1
 
 
 def _expand_path_patterns(paths: list[Path]) -> list[Path]:

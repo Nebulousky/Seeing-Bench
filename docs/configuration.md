@@ -174,3 +174,9 @@ metadata-derived extraction plan; it does not read or crop the large raster prod
 two-dimensional image with `IEEE754LSBSingle` or `SignedLSB2` samples. The command refuses
 missing, unverified, incompatible, or unsupported products and writes extracted windows as
 NumPy `.npy` arrays plus an extraction report.
+
+`datasets reproject-roi` consumes that extraction report and resamples each extracted
+map window onto the ROI's declared `target_resolution_m_per_px` grid. This is a basic
+north-up map-window reprojection for Phase 2 dataset plumbing; it is not yet the SPICE-backed
+Earth-view renderer and does not apply illumination, libration, local registration, or
+telescope PSF matching.

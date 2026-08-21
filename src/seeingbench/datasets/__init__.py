@@ -20,6 +20,7 @@ from seeingbench.datasets.readiness import (
     resolve_manifest_cache_path,
     resolve_product_file_cache_path,
 )
+from seeingbench.datasets.reproject import reproject_extracted_roi_products
 
 __all__ = [
     "DatasetManifest",
@@ -36,6 +37,7 @@ __all__ = [
     "load_roi_config",
     "parse_pds_label_file",
     "parse_pds_label_text",
+    "reproject_extracted_roi_products",
     "resolve_manifest_cache_path",
     "resolve_product_file_cache_path",
     "roi_pixel_window",
