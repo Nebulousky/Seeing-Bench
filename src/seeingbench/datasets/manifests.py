@@ -10,6 +10,8 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 from urllib.parse import urlparse
 
+from seeingbench.datasets.labels import label_summary, parse_pds_label_file
+
 MAX_METADATA_BYTES = 1_000_000
 TEXT_CONTENT_TYPES = (
     "text/",
@@ -119,6 +121,16 @@ class ProductFile:
             _validate_checksum(self.checksum)
         if self.expected_size_bytes is not None and self.expected_size_bytes <= 0:
             raise ValueError("product file expected_size_bytes must be positive")
+
+
+@dataclass(frozen=True)
+class ResolvedProductDownload:
+    """A product file with resolved size/checksum metadata for guarded download."""
+
+    product: ProductFile
+    expected_size_bytes: int
+    checksum: str | None
+    metadata_source: str
 
 
 @dataclass(frozen=True)
@@ -302,27 +314,29 @@ def fetch_manifest_product_files(
     manifest_path: Path,
     output_root: Path,
     max_total_bytes: int,
+    product_names: list[str] | None = None,
 ) -> list[Path]:
     """Fetch declared bulk product files only within an explicit byte budget."""
 
     if max_total_bytes <= 0:
         raise ValueError("max_total_bytes must be positive")
     manifest = load_manifest(manifest_path)
-    _validate_product_download_budget(manifest.product_files, max_total_bytes)
+    products = _selected_products(manifest.product_files, product_names)
+    downloads = _resolve_product_downloads(products, output_root)
+    _validate_product_download_budget(downloads, max_total_bytes)
     written: list[Path] = []
-    for product in manifest.product_files:
-        if product.expected_size_bytes is None:
-            raise ValueError(f"{product.name}: expected_size_bytes is required for download")
+    for download in downloads:
+        product = download.product
         destination = output_root / product.local_path
-        _fetch_binary_url(product.url, destination, max_bytes=product.expected_size_bytes)
+        _fetch_binary_url(product.url, destination, max_bytes=download.expected_size_bytes)
         size = destination.stat().st_size
-        if size != product.expected_size_bytes:
+        if size != download.expected_size_bytes:
             raise ValueError(
                 f"{product.name}: downloaded size {size} does not match "
-                f"expected {product.expected_size_bytes}"
+                f"expected {download.expected_size_bytes}"
             )
-        if product.checksum is not None:
-            _verify_file_checksum(destination, product.checksum)
+        if download.checksum is not None:
+            _verify_file_checksum(destination, download.checksum)
         written.append(destination)
     return written
 
@@ -409,20 +423,76 @@ def _fetch_binary_url(url: str, destination: Path, max_bytes: int) -> None:
         raise
 
 
-def _validate_product_download_budget(
+def _selected_products(
     products: tuple[ProductFile, ...],
+    product_names: list[str] | None,
+) -> tuple[ProductFile, ...]:
+    if not product_names:
+        return products
+    requested = set(product_names)
+    selected = tuple(product for product in products if product.name in requested)
+    found = {product.name for product in selected}
+    missing = sorted(requested - found)
+    if missing:
+        raise ValueError(f"unknown product file name(s): {', '.join(missing)}")
+    return selected
+
+
+def _resolve_product_downloads(
+    products: tuple[ProductFile, ...],
+    output_root: Path,
+) -> list[ResolvedProductDownload]:
+    return [_resolve_product_download(product, output_root) for product in products]
+
+
+def _resolve_product_download(
+    product: ProductFile,
+    output_root: Path,
+) -> ResolvedProductDownload:
+    expected_size = product.expected_size_bytes
+    checksum = product.checksum
+    metadata_source = "manifest"
+    if expected_size is None or checksum is None:
+        label_size, label_checksum = _label_product_download_metadata(product, output_root)
+        expected_size = expected_size or label_size
+        checksum = checksum or label_checksum
+        if label_size is not None or label_checksum is not None:
+            metadata_source = "label"
+    if expected_size is None:
+        raise ValueError(f"{product.name}: expected_size_bytes is required for download")
+    return ResolvedProductDownload(
+        product=product,
+        expected_size_bytes=expected_size,
+        checksum=checksum,
+        metadata_source=metadata_source,
+    )
+
+
+def _label_product_download_metadata(
+    product: ProductFile,
+    output_root: Path,
+) -> tuple[int | None, str | None]:
+    if product.label_local_path is None:
+        return None, None
+    label_path = output_root / product.label_local_path
+    if not label_path.exists():
+        return None, None
+    summary = label_summary(parse_pds_label_file(label_path))
+    file_name = summary.get("product_file_name")
+    if not isinstance(file_name, str) or file_name.lower() != Path(product.local_path).name.lower():
+        return None, None
+    size = summary.get("product_file_size_bytes")
+    checksum = summary.get("product_md5_checksum")
+    resolved_size = size if isinstance(size, int) else None
+    resolved_checksum = f"md5:{checksum}" if isinstance(checksum, str) and checksum else None
+    return resolved_size, resolved_checksum
+
+
+def _validate_product_download_budget(
+    downloads: list[ResolvedProductDownload],
     max_total_bytes: int,
 ) -> None:
-    unknown = [product.name for product in products if product.expected_size_bytes is None]
-    if unknown:
-        raise ValueError(
-            "cannot download products with unknown expected_size_bytes: " + ", ".join(unknown)
-        )
-    total = 0
-    for product in products:
-        if product.expected_size_bytes is None:
-            raise ValueError(f"{product.name}: expected_size_bytes is required for download")
-        total += product.expected_size_bytes
+    total = sum(download.expected_size_bytes for download in downloads)
     if total > max_total_bytes:
         raise ValueError(
             f"declared product size {total} bytes exceeds max_total_bytes {max_total_bytes}"

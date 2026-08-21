@@ -169,7 +169,8 @@ Fetch declared bulk products only when an explicit byte budget allows it:
 seeingbench datasets fetch-products \
   manifests/rois/copernicus_wac_gld100.json \
   --output-root . \
-  --max-total-bytes 2500000000
+  --max-total-bytes 2500000000 \
+  --product-name "WAC_GLD100_E300N3150_100M IMG"
 ```
 
 Write an explicit ROI download plan without downloading bulk data:

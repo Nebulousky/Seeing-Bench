@@ -327,6 +327,165 @@ def test_fetch_manifest_product_files_streams_and_verifies_products(
     assert requests == ["https://example.invalid/tile.img"]
 
 
+def test_fetch_manifest_product_files_uses_local_label_size_and_checksum(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"label-backed-product"
+    checksum = hashlib.md5(payload).hexdigest()
+    cache_root = tmp_path / "cache"
+    label_path = cache_root / "data" / "metadata" / "tile.xml"
+    label_path.parent.mkdir(parents=True)
+    label_path.write_text(
+        _pds4_label_text("tile.img", len(payload), checksum),
+        encoding="utf-8",
+    )
+    manifest = _valid_manifest_data()
+    manifest["product_files"] = [
+        {
+            "name": "tile img",
+            "url": "https://example.invalid/tile.img",
+            "local_path": "data/tile.img",
+            "checksum": None,
+            "label_local_path": "data/metadata/tile.xml",
+        }
+    ]
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    class Response:
+        def __init__(self) -> None:
+            self.headers = {
+                "Content-Type": "application/octet-stream",
+                "Content-Length": str(len(payload)),
+            }
+            self._remaining = payload
+
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            traceback: TracebackType | None,
+        ) -> None:
+            return None
+
+        def read(self, size: int) -> bytes:
+            chunk = self._remaining[:size]
+            self._remaining = self._remaining[size:]
+            return chunk
+
+    def fake_urlopen(request: Request, timeout: int) -> Response:
+        return Response()
+
+    monkeypatch.setattr("seeingbench.datasets.manifests.urllib.request.urlopen", fake_urlopen)
+
+    written = fetch_manifest_product_files(
+        manifest_path,
+        cache_root,
+        max_total_bytes=len(payload),
+    )
+
+    assert written == [cache_root / "data" / "tile.img"]
+    assert written[0].read_bytes() == payload
+
+
+def test_fetch_manifest_product_files_can_select_labelled_product(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"selected-product"
+    checksum = hashlib.md5(payload).hexdigest()
+    cache_root = tmp_path / "cache"
+    label_path = cache_root / "data" / "metadata" / "tile.xml"
+    label_path.parent.mkdir(parents=True)
+    label_path.write_text(
+        _pds4_label_text("tile.img", len(payload), checksum),
+        encoding="utf-8",
+    )
+    manifest = _valid_manifest_data()
+    manifest["product_files"] = [
+        {
+            "name": "tile img",
+            "url": "https://example.invalid/tile.img",
+            "local_path": "data/tile.img",
+            "checksum": None,
+            "label_local_path": "data/metadata/tile.xml",
+        },
+        {
+            "name": "tile browse",
+            "url": "https://example.invalid/tile.tif",
+            "local_path": "data/tile.tif",
+            "checksum": None,
+        },
+    ]
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    requests: list[str] = []
+
+    class Response:
+        def __init__(self) -> None:
+            self.headers = {"Content-Length": str(len(payload))}
+            self._remaining = payload
+
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            traceback: TracebackType | None,
+        ) -> None:
+            return None
+
+        def read(self, size: int) -> bytes:
+            chunk = self._remaining[:size]
+            self._remaining = self._remaining[size:]
+            return chunk
+
+    def fake_urlopen(request: Request, timeout: int) -> Response:
+        requests.append(request.full_url)
+        return Response()
+
+    monkeypatch.setattr("seeingbench.datasets.manifests.urllib.request.urlopen", fake_urlopen)
+
+    written = fetch_manifest_product_files(
+        manifest_path,
+        cache_root,
+        max_total_bytes=len(payload),
+        product_names=["tile img"],
+    )
+
+    assert written == [cache_root / "data" / "tile.img"]
+    assert requests == ["https://example.invalid/tile.img"]
+
+
+def test_fetch_manifest_product_files_rejects_unknown_product_name(tmp_path: Path) -> None:
+    manifest = _valid_manifest_data()
+    manifest["product_files"] = [
+        {
+            "name": "tile img",
+            "url": "https://example.invalid/tile.img",
+            "local_path": "data/tile.img",
+            "checksum": None,
+            "expected_size_bytes": 12,
+        }
+    ]
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unknown product file name"):
+        fetch_manifest_product_files(
+            manifest_path,
+            tmp_path / "cache",
+            max_total_bytes=100,
+            product_names=["missing"],
+        )
+
+
 def _valid_manifest_data() -> dict[str, object]:
     return {
         "name": "Example",
@@ -340,3 +499,17 @@ def _valid_manifest_data() -> dict[str, object]:
         "resolution": "100 m/pixel",
         "coordinate_system": "example coordinates",
     }
+
+
+def _pds4_label_text(file_name: str, file_size: int, md5: str) -> str:
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+    <Product_Observational>
+      <File_Area_Observational>
+        <File>
+          <file_name>{file_name}</file_name>
+          <file_size unit="byte">{file_size}</file_size>
+          <md5_checksum>{md5}</md5_checksum>
+        </File>
+      </File_Area_Observational>
+    </Product_Observational>
+    """

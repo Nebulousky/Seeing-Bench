@@ -35,7 +35,8 @@ Fetch declared bulk products only with an explicit byte budget:
 seeingbench datasets fetch-products \
   manifests/rois/copernicus_wac_gld100.json \
   --output-root . \
-  --max-total-bytes 2500000000
+  --max-total-bytes 2500000000 \
+  --product-name "WAC_GLD100_E300N3150_100M IMG"
 ```
 
 Write declared ROI product URLs and destinations without downloading products:

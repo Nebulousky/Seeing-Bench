@@ -250,6 +250,7 @@ def _build_parser() -> argparse.ArgumentParser:
     fetch_products.add_argument("manifest", type=Path)
     fetch_products.add_argument("--output-root", required=True, type=Path)
     fetch_products.add_argument("--max-total-bytes", required=True, type=int)
+    fetch_products.add_argument("--product-name", action="append")
     fetch_products.set_defaults(func=_datasets_fetch_products)
 
     roi_readiness = dataset_subparsers.add_parser(
@@ -526,6 +527,7 @@ def _datasets_fetch_products(args: argparse.Namespace) -> int:
         args.manifest,
         args.output_root,
         max_total_bytes=args.max_total_bytes,
+        product_names=args.product_name,
     )
     sys.stdout.write(f"{json.dumps([str(path) for path in written], indent=2)}\n")
     return 0

@@ -212,7 +212,11 @@ telescope PSF matching.
 
 `datasets fetch-products` is the guarded bulk downloader. It refuses product files without
 `expected_size_bytes`, requires `--max-total-bytes`, streams to a temporary `.part` file,
-and verifies declared size and checksum before leaving the product in the cache.
+and verifies declared size and checksum before leaving the product in the cache. If a
+product has a cached detached label that describes the same file, the downloader can use
+the label's file size and MD5 checksum instead of duplicating those values in the manifest.
+Use `--product-name` one or more times to download a subset of declared products, for
+example an IMG whose PDS label is cached while a browse TIF remains unresolved.
 
 ## Real Observation Metadata
 
