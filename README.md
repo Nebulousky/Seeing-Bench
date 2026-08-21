@@ -150,6 +150,16 @@ seeingbench datasets roi-download-plan \
   --output outputs/copernicus-download-plan.json
 ```
 
+Extract supported ROI windows from already-local verified products:
+
+```bash
+seeingbench datasets extract-roi \
+  --roi configs/rois/copernicus-100m.json \
+  --cache-root . \
+  --manifest-root . \
+  --output-root outputs/copernicus-roi
+```
+
 Inspect whether a documented real-data ROI is locally ready without downloading bulk data:
 
 ```bash

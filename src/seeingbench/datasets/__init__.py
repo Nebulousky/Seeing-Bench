@@ -1,5 +1,6 @@
 """Dataset manifest helpers."""
 
+from seeingbench.datasets.extract import extract_verified_roi_products
 from seeingbench.datasets.labels import parse_pds_label_file, parse_pds_label_text, roi_pixel_window
 from seeingbench.datasets.manifests import (
     DatasetManifest,
@@ -28,6 +29,7 @@ __all__ = [
     "ROIProductRequirement",
     "build_roi_download_plan",
     "build_roi_readiness_report",
+    "extract_verified_roi_products",
     "fetch_manifest_metadata",
     "fetch_manifest_product_labels",
     "load_manifest",

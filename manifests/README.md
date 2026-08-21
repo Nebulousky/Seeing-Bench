@@ -38,6 +38,17 @@ seeingbench datasets roi-download-plan \
   --manifest-root .
 ```
 
+Extract supported ROI windows from products that already exist locally and verify against
+declared or label-derived size/checksum metadata:
+
+```bash
+seeingbench datasets extract-roi \
+  --roi configs/rois/copernicus-100m.json \
+  --cache-root . \
+  --manifest-root . \
+  --output-root outputs/copernicus-roi
+```
+
 Inspect local ROI readiness without downloading bulk products:
 
 ```bash

@@ -17,6 +17,7 @@ from seeingbench.benchmark.compare import write_comparison_json, write_compariso
 from seeingbench.benchmark.experiment import load_synthetic_sweep_config, run_synthetic_sweep
 from seeingbench.benchmark.report import write_markdown_report
 from seeingbench.benchmark.runner import evaluate_reconstruction, save_evaluation_report
+from seeingbench.datasets.extract import extract_verified_roi_products
 from seeingbench.datasets.manifests import (
     fetch_manifest_metadata,
     fetch_manifest_product_labels,
@@ -178,6 +179,16 @@ def _build_parser() -> argparse.ArgumentParser:
     roi_download_plan.add_argument("--manifest-root", type=Path, default=Path("."))
     roi_download_plan.add_argument("--output", type=Path)
     roi_download_plan.set_defaults(func=_datasets_roi_download_plan)
+
+    extract_roi = dataset_subparsers.add_parser(
+        "extract-roi",
+        help="extract supported ROI windows from already-local verified products",
+    )
+    extract_roi.add_argument("--roi", required=True, type=Path)
+    extract_roi.add_argument("--cache-root", type=Path, default=Path("."))
+    extract_roi.add_argument("--manifest-root", type=Path, default=Path("."))
+    extract_roi.add_argument("--output-root", required=True, type=Path)
+    extract_roi.set_defaults(func=_datasets_extract_roi)
     return parser
 
 
@@ -370,6 +381,17 @@ def _datasets_roi_download_plan(args: argparse.Namespace) -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(payload, encoding="utf-8")
     return 0
+
+
+def _datasets_extract_roi(args: argparse.Namespace) -> int:
+    report = extract_verified_roi_products(
+        args.roi,
+        args.cache_root,
+        args.manifest_root,
+        args.output_root,
+    )
+    sys.stdout.write(f"{json.dumps(report, indent=2)}\n")
+    return 0 if report["extracted_count"] > 0 else 1
 
 
 def _expand_path_patterns(paths: list[Path]) -> list[Path]:

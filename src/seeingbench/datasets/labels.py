@@ -85,7 +85,24 @@ def _parse_pds4_xml_label(text: str) -> dict[str, Any]:
             elif axis_name == "sample":
                 fields["line_samples"] = _parse_value(value)
             axis_name = None
+    _merge_array_metadata(root, fields)
     return fields
+
+
+def _merge_array_metadata(root: ElementTree.Element, fields: dict[str, Any]) -> None:
+    for element in root.iter():
+        if _local_name(element.tag) != "Array_2D_Image":
+            continue
+        offset = _first_descendant_value(element, "offset")
+        if offset is not None:
+            fields["array_offset_bytes"] = _parse_value(offset)
+        data_type = _first_descendant_value(element, "data_type")
+        if data_type is not None:
+            fields["sample_type"] = data_type
+        missing_constant = _first_descendant_value(element, "missing_constant")
+        if missing_constant is not None:
+            fields["missing_constant"] = _parse_value(missing_constant)
+        break
 
 
 def parse_pds_label_file(path: Path, max_bytes: int = 1_000_000) -> dict[str, Any]:
@@ -153,6 +170,8 @@ def label_summary(fields: dict[str, Any]) -> dict[str, Any]:
         "product_file_name": fields.get("product_file_name"),
         "product_file_size_bytes": fields.get("product_file_size_bytes"),
         "product_md5_checksum": fields.get("product_md5_checksum"),
+        "array_offset_bytes": fields.get("array_offset_bytes"),
+        "missing_constant": fields.get("missing_constant"),
     }
 
 
@@ -224,6 +243,15 @@ def _strip_comment(line: str) -> str:
 
 def _local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
+
+
+def _first_descendant_value(element: ElementTree.Element, local_name: str) -> str | None:
+    for descendant in element.iter():
+        if _local_name(descendant.tag) == local_name:
+            value = (descendant.text or "").strip()
+            if value:
+                return value
+    return None
 
 
 def _parse_value(value: str) -> Any:

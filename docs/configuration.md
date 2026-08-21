@@ -169,3 +169,8 @@ Dataset manifests may also declare `product_files` for ROI-specific file require
 When a cached label includes map bounds, dimensions, and map scale, ROI readiness also
 reports an approximate `roi_pixel_window` for each labelled product file. This is only a
 metadata-derived extraction plan; it does not read or crop the large raster product.
+
+`datasets extract-roi` currently extracts `.IMG` files whose cached PDS4 labels describe a
+two-dimensional image with `IEEE754LSBSingle` or `SignedLSB2` samples. The command refuses
+missing, unverified, incompatible, or unsupported products and writes extracted windows as
+NumPy `.npy` arrays plus an extraction report.
