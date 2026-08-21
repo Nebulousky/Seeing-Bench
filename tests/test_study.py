@@ -66,4 +66,6 @@ def test_cli_builtin_baseline_study_runs_and_compares_all_baselines(tmp_path: Pa
         metrics_path = Path(row["metrics"])
         metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
         assert metrics["algorithm"] == row["algorithm"]
+        assert metrics["metadata"]["reconstruction_runtime_s"] is not None
+        assert metrics["metadata"]["evaluation_runtime_s"] > 0.0
         assert (Path(row["result_dir"]) / "reconstruction.tif").exists()

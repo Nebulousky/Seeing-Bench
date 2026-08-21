@@ -120,6 +120,8 @@ It uses the simulation fields above where names match, plus:
 frequency-bin count, and writes `study-summary.json`, `comparison.json`, and
 `comparison.md`. Reconstruction adapters consume only case input frames; retained truth is
 loaded only by the evaluator after each reconstruction output exists.
+Reports keep `reconstruction_runtime_s` separate from `evaluation_runtime_s`; comparison
+tables display reconstruction runtime only when an adapter recorded it.
 
 `seeingbench run-command` executes an explicit external command and requires it to write
 `reconstruction.tif` into the declared result directory. Command arguments may use `{case}`

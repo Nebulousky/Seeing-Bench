@@ -38,6 +38,8 @@ def test_reference_evaluation_translation_registration_improves_mse(tmp_path: Pa
     assert registered.image_similarity["mse"] < raw.image_similarity["mse"]
     assert registered.metadata["registration"]["method"] == "integer_phase_correlation_translation"
     assert registered.metadata["benchmark_mode"] == "standalone_reference"
+    assert registered.metadata["reconstruction_runtime_s"] is None
+    assert registered.metadata["evaluation_runtime_s"] > 0.0
 
 
 def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:

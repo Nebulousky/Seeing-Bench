@@ -40,6 +40,7 @@ def evaluate_reconstruction(
     recovery_limit = frequency_recovery_limit(frequency_curve, threshold=0.5)
     diffraction_fraction = _diffraction_frequency_fraction(case.metadata)
     warp_report = _load_warp_report(case.warp_fields, result_dir)
+    reconstruction_metadata = _load_result_metadata(result_dir)
     elapsed_s = time.perf_counter() - started
 
     return EvaluationReport(
@@ -66,6 +67,9 @@ def evaluate_reconstruction(
             "case_dir": str(case_dir),
             "result_dir": str(result_dir),
             "case_metadata": case.metadata,
+            "reconstruction_metadata": reconstruction_metadata,
+            "reconstruction_runtime_s": _optional_float(reconstruction_metadata.get("runtime_s")),
+            "evaluation_runtime_s": elapsed_s,
             "seeingbench_version": seeingbench.__version__,
             "python": platform.python_version(),
             "numpy": np.__version__,
@@ -92,6 +96,16 @@ def _load_warp_report(truth: np.ndarray, result_dir: Path) -> dict[str, float] |
     return warp_error_metrics(truth, estimate)
 
 
+def _load_result_metadata(result_dir: Path) -> dict[str, Any]:
+    path = result_dir / "metadata.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"result metadata must be a JSON object: {path}")
+    return data
+
+
 def _diffraction_frequency_fraction(metadata: dict[str, Any]) -> float | None:
     try:
         value = metadata["psf_information"]["telescope"][
@@ -115,6 +129,10 @@ def _mean_correlation_above(
         and np.isfinite(float(row["correlation"]))
     ]
     return float(np.mean(values)) if values else None
+
+
+def _optional_float(value: Any) -> float | None:
+    return None if value is None else float(value)
 
 
 def _json_safe(value: Any) -> Any:

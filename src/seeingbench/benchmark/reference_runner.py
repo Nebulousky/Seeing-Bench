@@ -78,6 +78,8 @@ def evaluate_reference_reconstruction(
             "reconstruction_path": str(reconstruction_path),
             "benchmark_mode": "standalone_reference",
             "registration": registration,
+            "reconstruction_runtime_s": None,
+            "evaluation_runtime_s": elapsed_s,
             "seeingbench_version": seeingbench.__version__,
             "python": platform.python_version(),
             "numpy": np.__version__,

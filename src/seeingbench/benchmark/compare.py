@@ -19,7 +19,8 @@ class ComparisonRow:
     gradient_correlation: float
     frequency_limit_fraction: float
     false_detail_fraction: float
-    runtime_s: float | None
+    reconstruction_runtime_s: float | None
+    evaluation_runtime_s: float | None
     score: float
 
     def to_dict(self) -> dict[str, Any]:
@@ -31,7 +32,8 @@ class ComparisonRow:
             "gradient_correlation": self.gradient_correlation,
             "frequency_limit_fraction": self.frequency_limit_fraction,
             "false_detail_fraction": self.false_detail_fraction,
-            "runtime_s": self.runtime_s,
+            "reconstruction_runtime_s": self.reconstruction_runtime_s,
+            "evaluation_runtime_s": self.evaluation_runtime_s,
             "score": self.score,
         }
 
@@ -75,15 +77,19 @@ def render_comparison_markdown(comparison: dict[str, Any]) -> str:
         "",
         f"Ranking basis: {comparison['ranking_basis']}",
         "",
-        "| Rank | Algorithm | Score | MSE | SSIM | Gradient Corr | Spectral Limit | False Detail |",
-        "|---:|---|---:|---:|---:|---:|---:|---:|",
+        (
+            "| Rank | Algorithm | Score | MSE | SSIM | Gradient Corr | Spectral Limit | "
+            "False Detail | Recon Runtime (s) |"
+        ),
+        "|---:|---|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for rank, row in enumerate(comparison["rows"], start=1):
         lines.append(
             "| "
             f"{rank} | `{row['algorithm']}` | {_fmt(row['score'])} | {_fmt(row['mse'])} | "
             f"{_fmt(row['ssim_global'])} | {_fmt(row['gradient_correlation'])} | "
-            f"{_fmt(row['frequency_limit_fraction'])} | {_fmt(row['false_detail_fraction'])} |"
+            f"{_fmt(row['frequency_limit_fraction'])} | {_fmt(row['false_detail_fraction'])} | "
+            f"{_fmt(row['reconstruction_runtime_s'])} |"
         )
     lines.append("")
     return "\n".join(lines)
@@ -116,7 +122,12 @@ def _row_from_report(metrics_path: Path) -> ComparisonRow:
         gradient_correlation=gradient,
         frequency_limit_fraction=frequency_limit,
         false_detail_fraction=false_fraction,
-        runtime_s=_optional_float(report.get("metadata", {}).get("runtime_s")),
+        reconstruction_runtime_s=_optional_float(
+            report.get("metadata", {}).get("reconstruction_runtime_s")
+        ),
+        evaluation_runtime_s=_optional_float(
+            report.get("metadata", {}).get("evaluation_runtime_s")
+        ),
         score=score,
     )
 
@@ -125,5 +136,7 @@ def _optional_float(value: Any) -> float | None:
     return None if value is None else float(value)
 
 
-def _fmt(value: float) -> str:
+def _fmt(value: float | None) -> str:
+    if value is None:
+        return "n/a"
     return f"{value:.6g}"

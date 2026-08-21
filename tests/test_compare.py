@@ -14,6 +14,7 @@ def test_compare_ranks_higher_recovery_and_lower_false_detail(tmp_path: Path) ->
 
     assert comparison["rows"][0]["algorithm"] == "strong"
     assert "false detail" in comparison["ranking_basis"]
+    assert comparison["rows"][0]["reconstruction_runtime_s"] == 2.0
 
 
 def test_comparison_markdown_contains_ranked_table(tmp_path: Path) -> None:
@@ -24,6 +25,7 @@ def test_comparison_markdown_contains_ranked_table(tmp_path: Path) -> None:
 
     assert "# SeeingBench Comparison" in markdown
     assert "| 1 | `a` |" in markdown
+    assert "Recon Runtime" in markdown
 
 
 def test_compare_score_uses_conservative_bottleneck(tmp_path: Path) -> None:
@@ -62,7 +64,10 @@ def _write_report(
                 "structural_accuracy": {"gradient_correlation": gradient},
                 "frequency_recovery": {"correlation_0_5_limit_fraction": frequency_limit},
                 "false_detail": {"unsupported_energy_fraction": false_detail},
-                "metadata": {"runtime_s": 1.0},
+                "metadata": {
+                    "reconstruction_runtime_s": 2.0,
+                    "evaluation_runtime_s": 0.1,
+                },
             }
         ),
         encoding="utf-8",

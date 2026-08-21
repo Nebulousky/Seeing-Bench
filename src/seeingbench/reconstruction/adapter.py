@@ -106,6 +106,7 @@ class BaselineStackAdapter:
         result_dir.mkdir(parents=True, exist_ok=True)
 
     def execute(self, benchmark_case: Path, result_dir: Path) -> None:
+        started = time.perf_counter()
         frames = [
             load_grayscale_image(path)
             for path in sorted((benchmark_case / "input").glob("frame_*.tif"))
@@ -123,6 +124,7 @@ class BaselineStackAdapter:
                     "adapter": self.name,
                     "frame_count": len(frames),
                     "method": "arithmetic mean of input frames",
+                    "runtime_s": time.perf_counter() - started,
                 },
                 indent=2,
             ),
@@ -147,6 +149,7 @@ class TranslationAlignedStackAdapter:
             shutil.rmtree(warp_dir)
 
     def execute(self, benchmark_case: Path, result_dir: Path) -> None:
+        started = time.perf_counter()
         frames = [
             load_grayscale_image(path)
             for path in sorted((benchmark_case / "input").glob("frame_*.tif"))
@@ -182,6 +185,7 @@ class TranslationAlignedStackAdapter:
                     "frame_count": len(frames),
                     "method": "phase-correlation integer global translation alignment",
                     "reference_frame": 1,
+                    "runtime_s": time.perf_counter() - started,
                 },
                 indent=2,
             ),
@@ -209,6 +213,7 @@ class LocalBlockAlignedStackAdapter:
             shutil.rmtree(warp_dir)
 
     def execute(self, benchmark_case: Path, result_dir: Path) -> None:
+        started = time.perf_counter()
         frames = [
             load_grayscale_image(path)
             for path in sorted((benchmark_case / "input").glob("frame_*.tif"))
@@ -247,6 +252,7 @@ class LocalBlockAlignedStackAdapter:
                     "method": "phase-correlation integer local block translation alignment",
                     "reference_frame": 1,
                     "block_size_px": self.block_size_px,
+                    "runtime_s": time.perf_counter() - started,
                 },
                 indent=2,
             ),
@@ -269,6 +275,7 @@ class OracleAlignedStackAdapter:
         (result_dir / "warp_fields").mkdir(parents=True, exist_ok=True)
 
     def execute(self, benchmark_case: Path, result_dir: Path) -> None:
+        started = time.perf_counter()
         case = load_benchmark_case(benchmark_case)
         frames = [
             load_grayscale_image(path)
@@ -299,6 +306,7 @@ class OracleAlignedStackAdapter:
                     "synthetic_oracle": True,
                     "prior_informed": True,
                     "experiment_class": "prior-informed synthetic oracle",
+                    "runtime_s": time.perf_counter() - started,
                     "validation_boundary": (
                         "uses SeeingBench-retained truth and must not be treated as a "
                         "deployable reconstruction algorithm"

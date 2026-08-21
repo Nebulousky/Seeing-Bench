@@ -59,6 +59,9 @@ def test_cli_generates_baseline_and_evaluates_case(tmp_path: Path) -> None:
     assert report["algorithm"] == "mean_stack"
     assert "image_similarity" in report
     assert "frequency_recovery" in report
+    assert report["metadata"]["reconstruction_runtime_s"] is not None
+    assert report["metadata"]["evaluation_runtime_s"] > 0.0
+    assert report["metadata"]["reconstruction_metadata"]["adapter"] == "mean_stack"
     assert (diagnostics_dir / "frequency_recovery.csv").exists()
     assert (diagnostics_dir / "truth.tif").exists()
     assert (diagnostics_dir / "reconstruction.tif").exists()
@@ -79,7 +82,9 @@ def test_cli_generates_baseline_and_evaluates_case(tmp_path: Path) -> None:
         )
         == 0
     )
-    assert "SeeingBench Report: mean_stack" in report_path.read_text(encoding="utf-8")
+    rendered_report = report_path.read_text(encoding="utf-8")
+    assert "SeeingBench Report: mean_stack" in rendered_report
+    assert "Reconstruction runtime" in rendered_report
 
     comparison_path = tmp_path / "comparison.md"
     assert (
