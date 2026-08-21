@@ -25,6 +25,7 @@ from seeingbench.benchmark.study import run_builtin_baseline_study
 from seeingbench.datasets.extract import extract_verified_roi_products
 from seeingbench.datasets.manifests import (
     fetch_manifest_metadata,
+    fetch_manifest_product_files,
     fetch_manifest_product_labels,
     validate_manifest_files,
 )
@@ -215,6 +216,15 @@ def _build_parser() -> argparse.ArgumentParser:
     fetch_labels.add_argument("manifest", type=Path)
     fetch_labels.add_argument("--output-root", required=True, type=Path)
     fetch_labels.set_defaults(func=_datasets_fetch_labels)
+
+    fetch_products = dataset_subparsers.add_parser(
+        "fetch-products",
+        help="fetch declared bulk product files within an explicit byte budget",
+    )
+    fetch_products.add_argument("manifest", type=Path)
+    fetch_products.add_argument("--output-root", required=True, type=Path)
+    fetch_products.add_argument("--max-total-bytes", required=True, type=int)
+    fetch_products.set_defaults(func=_datasets_fetch_products)
 
     roi_readiness = dataset_subparsers.add_parser(
         "roi-readiness",
@@ -464,6 +474,16 @@ def _datasets_fetch_metadata(args: argparse.Namespace) -> int:
 
 def _datasets_fetch_labels(args: argparse.Namespace) -> int:
     written = fetch_manifest_product_labels(args.manifest, args.output_root)
+    sys.stdout.write(f"{json.dumps([str(path) for path in written], indent=2)}\n")
+    return 0
+
+
+def _datasets_fetch_products(args: argparse.Namespace) -> int:
+    written = fetch_manifest_product_files(
+        args.manifest,
+        args.output_root,
+        max_total_bytes=args.max_total_bytes,
+    )
     sys.stdout.write(f"{json.dumps([str(path) for path in written], indent=2)}\n")
     return 0
 

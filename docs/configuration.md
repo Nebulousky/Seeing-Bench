@@ -199,6 +199,10 @@ north-up map-window reprojection for Phase 2 dataset plumbing; it is not yet the
 Earth-view renderer and does not apply illumination, libration, local registration, or
 telescope PSF matching.
 
+`datasets fetch-products` is the guarded bulk downloader. It refuses product files without
+`expected_size_bytes`, requires `--max-total-bytes`, streams to a temporary `.part` file,
+and verifies declared size and checksum before leaving the product in the cache.
+
 ## Real Observation Metadata
 
 The `render telescope-reference` command accepts the real-observation metadata shape from

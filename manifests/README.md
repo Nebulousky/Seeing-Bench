@@ -29,6 +29,15 @@ Fetch only declared product labels:
 seeingbench datasets fetch-labels manifests/rois/copernicus_wac_gld100.json --output-root .
 ```
 
+Fetch declared bulk products only with an explicit byte budget:
+
+```bash
+seeingbench datasets fetch-products \
+  manifests/rois/copernicus_wac_gld100.json \
+  --output-root . \
+  --max-total-bytes 2500000000
+```
+
 Write declared ROI product URLs and destinations without downloading products:
 
 ```bash

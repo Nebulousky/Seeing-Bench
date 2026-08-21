@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import urllib.request
 from dataclasses import dataclass, field
@@ -297,6 +298,35 @@ def fetch_manifest_product_labels(manifest_path: Path, output_root: Path) -> lis
     return written
 
 
+def fetch_manifest_product_files(
+    manifest_path: Path,
+    output_root: Path,
+    max_total_bytes: int,
+) -> list[Path]:
+    """Fetch declared bulk product files only within an explicit byte budget."""
+
+    if max_total_bytes <= 0:
+        raise ValueError("max_total_bytes must be positive")
+    manifest = load_manifest(manifest_path)
+    _validate_product_download_budget(manifest.product_files, max_total_bytes)
+    written: list[Path] = []
+    for product in manifest.product_files:
+        if product.expected_size_bytes is None:
+            raise ValueError(f"{product.name}: expected_size_bytes is required for download")
+        destination = output_root / product.local_path
+        _fetch_binary_url(product.url, destination, max_bytes=product.expected_size_bytes)
+        size = destination.stat().st_size
+        if size != product.expected_size_bytes:
+            raise ValueError(
+                f"{product.name}: downloaded size {size} does not match "
+                f"expected {product.expected_size_bytes}"
+            )
+        if product.checksum is not None:
+            _verify_file_checksum(destination, product.checksum)
+        written.append(destination)
+    return written
+
+
 def _validate_one(path: Path) -> dict[str, Any]:
     try:
         manifest = load_manifest(path)
@@ -353,6 +383,63 @@ def _fetch_text_url(
     destination.write_bytes(payload)
 
 
+def _fetch_binary_url(url: str, destination: Path, max_bytes: int) -> None:
+    request = urllib.request.Request(url, headers={"User-Agent": "SeeingBench/0.1"})
+    temporary = destination.with_name(f"{destination.name}.part")
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            content_length = response.headers.get("Content-Length")
+            if content_length is not None and int(content_length) > max_bytes:
+                raise ValueError(f"{url} exceeds product size limit")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            total = 0
+            with temporary.open("wb") as handle:
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise ValueError(f"{url} exceeds product size limit")
+                    handle.write(chunk)
+        temporary.replace(destination)
+    except Exception:
+        if temporary.exists():
+            temporary.unlink()
+        raise
+
+
+def _validate_product_download_budget(
+    products: tuple[ProductFile, ...],
+    max_total_bytes: int,
+) -> None:
+    unknown = [product.name for product in products if product.expected_size_bytes is None]
+    if unknown:
+        raise ValueError(
+            "cannot download products with unknown expected_size_bytes: " + ", ".join(unknown)
+        )
+    total = 0
+    for product in products:
+        if product.expected_size_bytes is None:
+            raise ValueError(f"{product.name}: expected_size_bytes is required for download")
+        total += product.expected_size_bytes
+    if total > max_total_bytes:
+        raise ValueError(
+            f"declared product size {total} bytes exceeds max_total_bytes {max_total_bytes}"
+        )
+
+
+def _verify_file_checksum(path: Path, declared_checksum: str) -> None:
+    algorithm, expected = _parse_checksum(declared_checksum)
+    digest = hashlib.new(algorithm)
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    actual = digest.hexdigest()
+    if actual.lower() != expected.lower():
+        raise ValueError(f"{path} checksum mismatch: expected {expected}, got {actual}")
+
+
 def _is_text_metadata_response(content_type: str, url: str) -> bool:
     if content_type.startswith(TEXT_CONTENT_TYPES):
         return True
@@ -374,12 +461,18 @@ def _validate_relative_path(path: str, field_name: str) -> None:
 
 
 def _validate_checksum(value: str) -> None:
+    _parse_checksum(value)
+
+
+def _parse_checksum(value: str) -> tuple[str, str]:
     if ":" not in value:
         raise ValueError("checksum must use '<algorithm>:<hex>' format")
     algorithm, checksum = value.split(":", 1)
+    algorithm = algorithm.lower()
     if algorithm.lower() not in SUPPORTED_CHECKSUMS:
         raise ValueError(
             f"unsupported checksum algorithm {algorithm!r}; expected one of {SUPPORTED_CHECKSUMS}"
         )
     if not checksum:
         raise ValueError("checksum value must be non-empty")
+    return algorithm, checksum

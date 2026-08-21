@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from types import TracebackType
@@ -12,6 +13,7 @@ from seeingbench.datasets.manifests import (
     MetadataDocument,
     ProductFile,
     fetch_manifest_metadata,
+    fetch_manifest_product_files,
     fetch_manifest_product_labels,
     validate_manifest_files,
 )
@@ -239,6 +241,90 @@ def test_fetch_manifest_product_labels_writes_declared_labels_once(
     assert written == [tmp_path / "cache" / "data" / "metadata" / "tile.lbl"]
     assert written[0].read_text(encoding="utf-8") == "PDS_VERSION\n"
     assert requests == ["https://example.invalid/tile.lbl"]
+
+
+def test_fetch_manifest_product_files_requires_explicit_budget(tmp_path: Path) -> None:
+    manifest = _valid_manifest_data()
+    manifest["product_files"] = [
+        {
+            "name": "tile img",
+            "url": "https://example.invalid/tile.img",
+            "local_path": "data/tile.img",
+            "checksum": None,
+            "expected_size_bytes": 12,
+        }
+    ]
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="exceeds max_total_bytes"):
+        fetch_manifest_product_files(
+            manifest_path,
+            tmp_path / "cache",
+            max_total_bytes=11,
+        )
+
+
+def test_fetch_manifest_product_files_streams_and_verifies_products(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = b"product-data"
+    checksum = hashlib.sha256(payload).hexdigest()
+    manifest = _valid_manifest_data()
+    manifest["product_files"] = [
+        {
+            "name": "tile img",
+            "url": "https://example.invalid/tile.img",
+            "local_path": "data/tile.img",
+            "checksum": f"sha256:{checksum}",
+            "expected_size_bytes": len(payload),
+        }
+    ]
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    requests: list[str] = []
+
+    class Response:
+        def __init__(self) -> None:
+            self.headers = {
+                "Content-Type": "application/octet-stream",
+                "Content-Length": str(len(payload)),
+            }
+            self._remaining = payload
+
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc: BaseException | None,
+            traceback: TracebackType | None,
+        ) -> None:
+            return None
+
+        def read(self, size: int) -> bytes:
+            chunk = self._remaining[:size]
+            self._remaining = self._remaining[size:]
+            return chunk
+
+    def fake_urlopen(request: Request, timeout: int) -> Response:
+        requests.append(request.full_url)
+        return Response()
+
+    monkeypatch.setattr("seeingbench.datasets.manifests.urllib.request.urlopen", fake_urlopen)
+
+    written = fetch_manifest_product_files(
+        manifest_path,
+        tmp_path / "cache",
+        max_total_bytes=100,
+    )
+
+    assert written == [tmp_path / "cache" / "data" / "tile.img"]
+    assert written[0].read_bytes() == payload
+    assert not (tmp_path / "cache" / "data" / "tile.img.part").exists()
+    assert requests == ["https://example.invalid/tile.img"]
 
 
 def _valid_manifest_data() -> dict[str, object]:

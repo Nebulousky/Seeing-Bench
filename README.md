@@ -150,6 +150,15 @@ seeingbench datasets fetch-labels \
   --output-root .
 ```
 
+Fetch declared bulk products only when an explicit byte budget allows it:
+
+```bash
+seeingbench datasets fetch-products \
+  manifests/rois/copernicus_wac_gld100.json \
+  --output-root . \
+  --max-total-bytes 2500000000
+```
+
 Write an explicit ROI download plan without downloading bulk data:
 
 ```bash
