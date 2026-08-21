@@ -15,6 +15,9 @@ def test_compare_ranks_higher_recovery_and_lower_false_detail(tmp_path: Path) ->
     assert comparison["rows"][0]["algorithm"] == "strong"
     assert "false detail" in comparison["ranking_basis"]
     assert comparison["rows"][0]["reconstruction_runtime_s"] == 2.0
+    assert comparison["leaders"]["best_score"]["algorithm"] == "strong"
+    assert comparison["leaders"]["best_frequency_recovery"]["algorithm"] == "strong"
+    assert comparison["leaders"]["least_false_detail"]["algorithm"] == "strong"
 
 
 def test_comparison_markdown_contains_ranked_table(tmp_path: Path) -> None:
@@ -24,6 +27,7 @@ def test_comparison_markdown_contains_ranked_table(tmp_path: Path) -> None:
     markdown = render_comparison_markdown(compare_metric_files([first, second]))
 
     assert "# SeeingBench Comparison" in markdown
+    assert "## Direct Answers" in markdown
     assert "| 1 | `a` |" in markdown
     assert "Recon Runtime" in markdown
 
@@ -47,6 +51,43 @@ def test_compare_score_uses_conservative_bottleneck(tmp_path: Path) -> None:
     assert "min(global SSIM" in comparison["ranking_basis"]
 
 
+def test_compare_reports_distinct_metric_leaders(tmp_path: Path) -> None:
+    score = _write_report(
+        tmp_path / "score.json",
+        "score",
+        ssim=0.9,
+        gradient=0.9,
+        frequency_limit=0.8,
+        false_detail=0.1,
+        runtime_s=3.0,
+    )
+    recovery = _write_report(
+        tmp_path / "recovery.json",
+        "recovery",
+        ssim=0.6,
+        gradient=0.6,
+        frequency_limit=0.95,
+        false_detail=0.3,
+        runtime_s=2.0,
+    )
+    conservative = _write_report(
+        tmp_path / "conservative.json",
+        "conservative",
+        ssim=0.5,
+        gradient=0.5,
+        frequency_limit=0.5,
+        false_detail=0.01,
+        runtime_s=1.0,
+    )
+
+    comparison = compare_metric_files([score, recovery, conservative])
+
+    assert comparison["leaders"]["best_score"]["algorithm"] == "score"
+    assert comparison["leaders"]["best_frequency_recovery"]["algorithm"] == "recovery"
+    assert comparison["leaders"]["least_false_detail"]["algorithm"] == "conservative"
+    assert comparison["leaders"]["fastest_reconstruction"]["algorithm"] == "conservative"
+
+
 def _write_report(
     path: Path,
     algorithm: str,
@@ -54,6 +95,7 @@ def _write_report(
     gradient: float,
     frequency_limit: float,
     false_detail: float,
+    runtime_s: float | None = 2.0,
 ) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -65,7 +107,7 @@ def _write_report(
                 "frequency_recovery": {"correlation_0_5_limit_fraction": frequency_limit},
                 "false_detail": {"unsupported_energy_fraction": false_detail},
                 "metadata": {
-                    "reconstruction_runtime_s": 2.0,
+                    "reconstruction_runtime_s": runtime_s,
                     "evaluation_runtime_s": 0.1,
                 },
             }

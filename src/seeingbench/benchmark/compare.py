@@ -45,12 +45,14 @@ def compare_metric_files(paths: list[Path]) -> dict[str, Any]:
         raise ValueError("compare requires at least two metrics files or result directories")
     rows = [_row_from_report(_resolve_metrics_path(path)) for path in paths]
     ranked = sorted(rows, key=lambda row: row.score, reverse=True)
+    ranked_dicts = [row.to_dict() for row in ranked]
     return {
         "ranking_basis": (
             "conservative diagnostic score = min(global SSIM, gradient correlation, "
             "spectral-fidelity limit) * (1 - false detail fraction)"
         ),
-        "rows": [row.to_dict() for row in ranked],
+        "leaders": _leaders(rows),
+        "rows": ranked_dicts,
     }
 
 
@@ -76,6 +78,37 @@ def render_comparison_markdown(comparison: dict[str, Any]) -> str:
         "# SeeingBench Comparison",
         "",
         f"Ranking basis: {comparison['ranking_basis']}",
+        "",
+        "## Direct Answers",
+        "",
+        *[
+            f"- {label}: {_leader_text(comparison['leaders'][key], value_key)}"
+            for label, key, value_key in (
+                ("Best conservative score", "best_score", "score"),
+                (
+                    "Most genuine spectral recovery",
+                    "best_frequency_recovery",
+                    "frequency_limit_fraction",
+                ),
+                (
+                    "Best structural recovery",
+                    "best_structural_accuracy",
+                    "gradient_correlation",
+                ),
+                (
+                    "Least unsupported fine detail",
+                    "least_false_detail",
+                    "false_detail_fraction",
+                ),
+                (
+                    "Fastest reconstruction",
+                    "fastest_reconstruction",
+                    "reconstruction_runtime_s",
+                ),
+            )
+        ],
+        "",
+        "## Ranked Table",
         "",
         (
             "| Rank | Algorithm | Score | MSE | SSIM | Gradient Corr | Spectral Limit | "
@@ -130,6 +163,49 @@ def _row_from_report(metrics_path: Path) -> ComparisonRow:
         ),
         score=score,
     )
+
+
+def _leaders(rows: list[ComparisonRow]) -> dict[str, dict[str, Any] | None]:
+    finite_runtime_rows = [row for row in rows if row.reconstruction_runtime_s is not None]
+    return {
+        "best_score": _leader(max(rows, key=lambda row: row.score), "score"),
+        "best_frequency_recovery": _leader(
+            max(rows, key=lambda row: row.frequency_limit_fraction),
+            "frequency_limit_fraction",
+        ),
+        "best_structural_accuracy": _leader(
+            max(rows, key=lambda row: row.gradient_correlation),
+            "gradient_correlation",
+        ),
+        "least_false_detail": _leader(
+            min(rows, key=lambda row: row.false_detail_fraction),
+            "false_detail_fraction",
+        ),
+        "fastest_reconstruction": (
+            _leader(
+                min(finite_runtime_rows, key=lambda row: row.reconstruction_runtime_s or 0.0),
+                "reconstruction_runtime_s",
+            )
+            if finite_runtime_rows
+            else None
+        ),
+    }
+
+
+def _leader(row: ComparisonRow, metric: str) -> dict[str, Any]:
+    data = row.to_dict()
+    return {
+        "algorithm": row.algorithm,
+        "metric": metric,
+        "value": data[metric],
+        "metrics_path": row.metrics_path,
+    }
+
+
+def _leader_text(leader: dict[str, Any] | None, value_key: str) -> str:
+    if leader is None:
+        return "`n/a`"
+    return f"`{leader['algorithm']}` ({value_key}={_fmt(_optional_float(leader['value']))})"
 
 
 def _optional_float(value: Any) -> float | None:

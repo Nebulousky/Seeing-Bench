@@ -110,6 +110,10 @@ seeingbench compare \
   --output outputs/comparison.md
 ```
 
+The comparison report includes direct answers for best conservative score, most spectral
+recovery, best structural recovery, least unsupported fine detail, and fastest recorded
+reconstruction.
+
 Run a reproducible built-in comparative baseline study for one case:
 
 ```bash
