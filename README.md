@@ -307,6 +307,7 @@ seeingbench evaluate-reference \
   --reconstruction outputs/m51-run/reconstruction.tif \
   --algorithm m51 \
   --output outputs/m51-run/reference-metrics.json \
+  --diagnostics outputs/m51-run/reference-diagnostics \
   --register-translation \
   --photometric-normalization linear \
   --registration-rotation-deg -1 \

@@ -26,6 +26,7 @@ def write_diagnostics(
     degraded_frame: FloatArray | None = None,
     warp_fields: FloatArray | None = None,
     warp_components: dict[str, FloatArray] | None = None,
+    scale_primary_images: bool = False,
 ) -> dict[str, Any]:
     """Write residual images and a frequency-recovery CSV."""
 
@@ -36,10 +37,11 @@ def write_diagnostics(
     residual = np.abs(reconstruction - reference)
     edge_residual = edge_residual_map(reference, reconstruction)
     false_map = false_detail_map(reference, reconstruction)
+    write_primary = _write_scaled if scale_primary_images else _write_unit
 
     written = {
-        "truth": _write_unit(output_dir / "truth.tif", reference),
-        "reconstruction": _write_unit(output_dir / "reconstruction.tif", reconstruction),
+        "truth": write_primary(output_dir / "truth.tif", reference),
+        "reconstruction": write_primary(output_dir / "reconstruction.tif", reconstruction),
         "absolute_residual": _write_scaled(output_dir / "absolute_residual.tif", residual),
         "edge_residual": _write_scaled(output_dir / "edge_residual.tif", edge_residual),
         "false_detail_map": _write_scaled(output_dir / "false_detail_map.tif", false_map),

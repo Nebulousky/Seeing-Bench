@@ -17,6 +17,7 @@ class EvaluationReport:
     false_detail: dict[str, float]
     warp_recovery: dict[str, float] | None
     metadata: dict[str, Any]
+    diagnostics: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

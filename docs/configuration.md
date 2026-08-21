@@ -166,6 +166,9 @@ mapping from reconstruction to reference after geometric registration and before
 The fit records scale, offset, and pre/post MSE in metrics metadata; it does not clip pixel
 values and it is skipped with an explicit reason when the reconstruction has degenerate
 contrast. The default `none` leaves intensities unchanged.
+`--diagnostics <dir>` writes the same residual, edge-residual, false-detail, and frequency
+CSV artifacts for the scored reference/reconstruction pair; primary images are display
+scaled for this mode so photometrically normalized values outside `[0, 1]` remain writable.
 
 `seeingbench study run-config` accepts a JSON object with `case`, `frequency_bins`,
 `local_block_size_px`, and an `algorithms` list. Each algorithm has a stable `name` and

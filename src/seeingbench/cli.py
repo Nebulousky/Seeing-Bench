@@ -167,6 +167,7 @@ def _build_parser() -> argparse.ArgumentParser:
     evaluate_reference.add_argument("--reconstruction", required=True, type=Path)
     evaluate_reference.add_argument("--algorithm", default="manual")
     evaluate_reference.add_argument("--output", required=True, type=Path)
+    evaluate_reference.add_argument("--diagnostics", type=Path)
     evaluate_reference.add_argument("--frequency-bins", type=int, default=24)
     evaluate_reference.add_argument("--register-translation", action="store_true")
     evaluate_reference.add_argument(
@@ -536,6 +537,7 @@ def _evaluate_reference(args: argparse.Namespace) -> int:
         registration_shear_y=args.registration_shear_y,
         reference_metadata_path=args.reference_metadata,
         photometric_normalization=args.photometric_normalization,
+        diagnostics_output_dir=args.diagnostics,
     )
     save_reference_evaluation_report(report, args.output)
     return 0

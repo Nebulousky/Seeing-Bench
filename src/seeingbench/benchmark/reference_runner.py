@@ -24,6 +24,7 @@ from seeingbench.reconstruction.alignment import (
     estimate_integer_translation,
 )
 from seeingbench.simulation.warp import apply_warp, validate_grayscale_image
+from seeingbench.visualization.diagnostics import write_diagnostics
 
 
 def evaluate_reference_reconstruction(
@@ -39,6 +40,7 @@ def evaluate_reference_reconstruction(
     reference_metadata_path: Path | None = None,
     reconstruction_metadata_path: Path | None = None,
     photometric_normalization: str = "none",
+    diagnostics_output_dir: Path | None = None,
 ) -> EvaluationReport:
     """Evaluate a reconstruction directly against a standalone reference image."""
 
@@ -89,6 +91,17 @@ def evaluate_reference_reconstruction(
     )
     frequency_curve = radial_frequency_correlation(reference, reconstruction, bins=frequency_bins)
     recovery_limit = frequency_recovery_limit(frequency_curve, threshold=0.5)
+    diagnostics = (
+        None
+        if diagnostics_output_dir is None
+        else write_diagnostics(
+            diagnostics_output_dir,
+            reference,
+            reconstruction,
+            frequency_curve,
+            scale_primary_images=True,
+        )
+    )
     reference_metadata = _load_optional_json_metadata(reference_metadata_path, "reference metadata")
     reconstruction_metadata = _load_optional_json_metadata(
         reconstruction_metadata_path,
@@ -148,6 +161,7 @@ def evaluate_reference_reconstruction(
                 "standalone reference is loaded only by the evaluator after reconstruction"
             ),
         },
+        diagnostics=diagnostics,
     )
 
 

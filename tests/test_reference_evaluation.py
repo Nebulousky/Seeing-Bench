@@ -238,6 +238,7 @@ def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
     reconstruction_path = tmp_path / "reconstruction.npy"
     reference_metadata_path = tmp_path / "reference-report.json"
     metrics_path = tmp_path / "metrics.json"
+    diagnostics_dir = tmp_path / "diagnostics"
     np.save(reference_path, reference)
     np.save(reconstruction_path, reference.copy())
     reference_metadata_path.write_text(
@@ -270,6 +271,8 @@ def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
                 "perfect",
                 "--output",
                 str(metrics_path),
+                "--diagnostics",
+                str(diagnostics_dir),
                 "--frequency-bins",
                 "6",
                 "--registration-rotation-deg",
@@ -290,8 +293,15 @@ def test_cli_evaluate_reference_writes_metrics_json(tmp_path: Path) -> None:
     assert report["metadata"]["benchmark_mode"] == "standalone_reference"
     assert report["metadata"]["registration"]["method"] == "global_similarity_grid_search"
     assert report["metadata"]["registration"]["selected_shear_x"] == 0.0
+    assert report["diagnostics"]["frequency_curve_csv"] == str(
+        diagnostics_dir / "frequency_recovery.csv"
+    )
     assert report["metadata"]["reference_limitations"] == ["simple_lambertian_illumination_model"]
     assert report["metadata"]["reference_provenance"]["logical_identifier"] == (
         "urn:nasa:pds:cli-reference"
     )
     assert report["image_similarity"]["mse"] == 0.0
+    assert (diagnostics_dir / "truth.tif").exists()
+    assert (diagnostics_dir / "reconstruction.tif").exists()
+    assert (diagnostics_dir / "edge_residual.tif").exists()
+    assert (diagnostics_dir / "false_detail_map.tif").exists()
